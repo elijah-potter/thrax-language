@@ -1,0 +1,7 @@
+reorder_impl_items = true
+reorder_imports = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Module"
+use_field_init_shorthand = true
+normalize_comments = true
+
