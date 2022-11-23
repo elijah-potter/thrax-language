@@ -1,18 +1,19 @@
-use ast::{BinaryOp, BinaryOpKind, Expr};
+use ast::{BinaryOp, BinaryOpKind, Expr, FnCall};
 
-use super::tokens_ext::TokensExt;
+use super::common_parsers::{parse_expr_list, FoundExprList};
+use super::tokens_ext::{LocatedBinaryOp, TokensExt};
 use super::Error;
 use crate::lex::{ShallowTokenKind, Token, TokenKind};
 
 #[derive(Debug)]
 pub struct FoundExpr {
-    pub expression: Expr,
+    pub expr: Expr,
     pub next_index: usize,
 }
 
 /// Runs all parsers over supplied source, returning the first success or last failure
 pub fn parse_expr(tokens: &[Token]) -> Result<FoundExpr, Error> {
-    let parsers = [parse_binary_op, parse_literal];
+    let parsers = [parse_fn_call, parse_binary_op, parse_literal];
 
     let mut last_failure = None;
 
@@ -42,44 +43,53 @@ fn parse_literal(tokens: &[Token]) -> Result<FoundExpr, Error> {
     };
 
     Ok(FoundExpr {
-        expression: expr,
+        expr,
         next_index: 1,
     })
 }
 
 fn parse_binary_op(tokens: &[Token]) -> Result<FoundExpr, Error> {
-    let FoundExpr {
-        expression: a,
-        next_index,
-    } = parse_literal(tokens)?;
+    let LocatedBinaryOp { op: kind, location } = tokens.locate_first_binary_op()?;
 
-    let kind = tokens.get_binary_op(next_index)?;
+    let FoundExpr { expr: a, .. } = parse_expr(&tokens[..location])?;
 
     let FoundExpr {
-        expression: b,
+        expr: b,
         next_index,
-    } = parse_expr(&tokens[next_index + 1..]).map_err(|err| err.relative_to(1))?;
+    } = parse_expr(&tokens[location + 1..]).map_err(|err| err.relative_to(location + 1))?;
 
     Ok(FoundExpr {
-        expression: Expr::BinaryOp(BinaryOp {
+        expr: Expr::BinaryOp(BinaryOp {
             kind,
             a: Box::new(a),
             b: Box::new(b),
         }),
-        next_index,
+        next_index: next_index + location + 1,
+    })
+}
+
+fn parse_fn_call(tokens: &[Token]) -> Result<FoundExpr, Error> {
+    let identifier = tokens.get_token_kind(0, ShallowTokenKind::Ident)?;
+
+    let FoundExprList { exprs, next_index } =
+        parse_expr_list(&tokens[1..], ShallowTokenKind::Comma).map_err(|err| err.relative_to(1))?;
+
+    Ok(FoundExpr {
+        expr: Expr::FnCall(FnCall {
+            ident: identifier.kind.clone().ident().unwrap(),
+            args: exprs,
+        }),
+        next_index: next_index + 1,
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::parse_binary_op;
-    use crate::lex::{lex_to_end, Token};
-    use crate::parse::expr_parsers::parse_expr;
+    use crate::parse::expr_parsers::parse_fn_call;
+    use crate::test_utils::tokenize;
 
-    fn tokenize(source: &str) -> Vec<Token> {
-        let chars: Vec<char> = source.chars().collect();
-        lex_to_end(&chars).expect("Failed to tokenize.")
-    }
+    // TODO: ADD WAY MORE TESTS
 
     #[test]
     fn parses_add() {
@@ -87,6 +97,15 @@ mod tests {
 
         let res = parse_binary_op(&tokens);
 
-        dbg!(res.unwrap());
+        res.unwrap();
+    }
+
+    #[test]
+    fn parses_fn_call() {
+        let tokens = tokenize("test(a + 12, b)");
+
+        let res = parse_fn_call(&tokens);
+
+        res.unwrap();
     }
 }

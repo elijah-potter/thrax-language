@@ -3,6 +3,11 @@ use ast::BinaryOpKind;
 use crate::lex::{ShallowTokenKind, Token, TokenKind};
 use crate::parse::Error;
 
+pub struct LocatedBinaryOp {
+    pub op: BinaryOpKind,
+    pub location: usize,
+}
+
 pub trait TokensExt {
     fn get_token_kind<'a>(
         &'a self,
@@ -11,6 +16,12 @@ pub trait TokensExt {
     ) -> Result<&'a Token, Error>;
     fn locate_first(&self, kind: ShallowTokenKind) -> Result<usize, Error>;
     fn get_binary_op(&self, index: usize) -> Result<BinaryOpKind, Error>;
+    fn locate_last_matched_right(
+        &self,
+        left: ShallowTokenKind,
+        right: ShallowTokenKind,
+    ) -> Result<usize, Error>;
+    fn locate_first_binary_op(&self) -> Result<LocatedBinaryOp, Error>;
 }
 
 impl TokensExt for [Token] {
@@ -31,8 +42,8 @@ impl TokensExt for [Token] {
     }
 
     fn locate_first(&self, kind: ShallowTokenKind) -> Result<usize, Error> {
-        if self.len() == 0{
-            return Err(Error::expected_token(0, kind, None))
+        if self.len() == 0 {
+            return Err(Error::expected_token(0, kind, None));
         }
 
         self.iter()
@@ -50,14 +61,60 @@ impl TokensExt for [Token] {
             .get(index)
             .ok_or(Error::expected_binary_operator(index, None))?;
 
-        let kind = match token.kind {
-            TokenKind::Plus => BinaryOpKind::Add,
-            TokenKind::Minus => BinaryOpKind::Subtract,
-            TokenKind::Asterisk => BinaryOpKind::Multiply,
-            TokenKind::ForwardSlash => BinaryOpKind::Divide,
-            _ => return Err(Error::expected_binary_operator(index, Some(token.clone()))),
-        };
+        token
+            .kind
+            .as_binary_op()
+            .ok_or(Error::expected_binary_operator(index, Some(token.clone())))
+    }
 
-        Ok(kind)
+    /// Meant for brackets.
+    ///
+    /// For example, finding the final `]` in `[a + [b]]`.
+    ///
+    /// First token must be `left`
+    ///
+    /// Returns an error for expected `right` if not found.
+    fn locate_last_matched_right(
+        &self,
+        left: ShallowTokenKind,
+        right: ShallowTokenKind,
+    ) -> Result<usize, Error> {
+        self.get_token_kind(0, left)?;
+
+        let mut left_count = 1;
+
+        for (index, token) in self.iter().enumerate().skip(1) {
+            if token.kind.as_shallow() == left {
+                left_count += 1
+            } else if token.kind.as_shallow() == right {
+                if left_count == 1 {
+                    return Ok(index);
+                } else {
+                    left_count -= 1;
+                }
+            }
+        }
+
+        Err(Error::expected_token(self.len() - 1, right, None))
+    }
+
+    fn locate_first_binary_op(&self) -> Result<LocatedBinaryOp, Error> {
+        if self.len() == 0 {
+            return Err(Error::expected_binary_operator(0, None));
+        }
+
+        for (index, token) in self.iter().enumerate() {
+            if let Some(op) = token.kind.as_binary_op() {
+                return Ok(LocatedBinaryOp {
+                    op,
+                    location: index,
+                });
+            }
+        }
+
+        Err(Error::expected_binary_operator(
+            self.len() - 1,
+            self.last().cloned(),
+        ))
     }
 }

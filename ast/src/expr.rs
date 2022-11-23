@@ -7,6 +7,7 @@ pub enum Expr {
     StringLiteral(String),
     BoolLiteral(bool),
     BinaryOp(BinaryOp),
+    FnCall(FnCall),
 }
 
 #[derive(Debug, Clone)]
@@ -22,4 +23,13 @@ pub enum BinaryOpKind {
     Subtract,
     Multiply,
     Divide,
+    GreaterThan,
+    LessThan,
+    Equals,
+}
+
+#[derive(Debug, Clone)]
+pub struct FnCall {
+    pub ident: String,
+    pub args: Vec<Expr>,
 }

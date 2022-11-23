@@ -11,6 +11,14 @@ pub struct Error {
     pub kind: ErrorKind,
 }
 
+impl std::error::Error for Error {}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "")
+    }
+}
+
 #[derive(Debug, Is)]
 pub enum ErrorKind {
     ExpectedToken {
@@ -55,13 +63,5 @@ impl Error {
             index: at_index,
             kind: ErrorKind::ExpectedLiteral { received },
         }
-    }
-}
-
-impl std::error::Error for Error {}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
     }
 }

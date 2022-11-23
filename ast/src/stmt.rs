@@ -7,8 +7,10 @@ pub enum Stmt {
     VarDecl(VarDecl),
     VarAssign(VarAssign),
     FnDecl(FnDecl),
-    FnCall(FnCall),
     WhileLoop(WhileLoop),
+    FnReturn(FnReturn),
+    IfElse(IfElse),
+    Expr(Expr),
 }
 
 #[derive(Debug, Clone)]
@@ -31,13 +33,19 @@ pub struct FnDecl {
 }
 
 #[derive(Debug, Clone)]
-pub struct FnCall {
-    pub ident: String,
-    pub args: Vec<Expr>,
-}
-
-#[derive(Debug, Clone)]
 pub struct WhileLoop {
     pub condition: Expr,
     pub body: Vec<Stmt>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FnReturn {
+    pub value: Option<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IfElse {
+    pub condition: Expr,
+    pub true_branch: Vec<Stmt>,
+    pub else_branch: Vec<Stmt>,
 }

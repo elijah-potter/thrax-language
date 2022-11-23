@@ -1,3 +1,4 @@
+use ast::BinaryOpKind;
 use is_macro::Is;
 
 #[derive(Debug, Clone, Copy)]
@@ -48,6 +49,21 @@ macro_rules! define_token_types {
     };
 }
 
+impl TokenKind {
+    pub fn as_binary_op(&self) -> Option<BinaryOpKind> {
+        match self {
+            TokenKind::Plus => Some(BinaryOpKind::Add),
+            TokenKind::Minus => Some(BinaryOpKind::Subtract),
+            TokenKind::Asterisk => Some(BinaryOpKind::Multiply),
+            TokenKind::ForwardSlash => Some(BinaryOpKind::Divide),
+            TokenKind::DoubleEquals => Some(BinaryOpKind::Equals),
+            TokenKind::GreaterThan => Some(BinaryOpKind::GreaterThan),
+            TokenKind::LessThan => Some(BinaryOpKind::LessThan),
+            _ => None,
+        }
+    }
+}
+
 define_token_types! {
     Number(f64),
     String(String),
@@ -58,9 +74,15 @@ define_token_types! {
     RightBrace,
     Comma,
     Equals,
+    DoubleEquals,
+    GreaterThan,
+    LessThan,
     Let,
     Fn,
+    Return,
     While,
+    If,
+    Else,
     Plus,
     Minus,
     Asterisk,

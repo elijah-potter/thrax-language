@@ -1,0 +1,9 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ast = { path = "../ast" }
+clap = { version = "4.0.26", features = ["derive"] }
+parser = { path = "../parser" }
