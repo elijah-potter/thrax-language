@@ -1,10 +1,10 @@
-use ast::{Expr, FnCall, FnDecl, FnReturn, Stmt, VarAssign, VarDecl};
+use ast::{FnDecl, FnReturn, Stmt, VarAssign, VarDecl};
 
-use super::common_parsers::{parse_expr_list, parse_prop_ident_list, FoundPropIdentList};
-use super::expr_parsers::{parse_expr, FoundExpr};
+use super::common_parsers::{parse_prop_ident_list, FoundPropIdentList};
+use super::expr_parsers::parse_expr;
 use super::tokens_ext::TokensExt;
 use super::Error;
-use crate::lex::{ShallowTokenKind, Token, TokenKind};
+use crate::lex::{ShallowTokenKind, Token};
 
 #[derive(Debug, Clone)]
 pub struct FoundStmt {
@@ -61,15 +61,12 @@ fn parse_var_decl(tokens: &[Token]) -> Result<FoundStmt, Error> {
 
     let semi_location = tokens.locate_first(ShallowTokenKind::Semicolon)?;
 
-    let FoundExpr {
-        expr: expression,
-        next_index,
-    } = parse_expr(&tokens[3..semi_location]).map_err(|err| err.relative_to(3))?;
+    let expr = parse_expr(&tokens[3..semi_location]).map_err(|err| err.relative_to(3))?;
 
     Ok(FoundStmt {
         stmt: Stmt::VarDecl(VarDecl {
             ident: identifier.kind.clone().ident().unwrap(),
-            initializer: expression,
+            initializer: expr,
         }),
         next_index: semi_location + 1,
     })
@@ -82,15 +79,12 @@ fn parse_var_assign(tokens: &[Token]) -> Result<FoundStmt, Error> {
 
     let semi_location = tokens.locate_first(ShallowTokenKind::Semicolon)?;
 
-    let FoundExpr {
-        expr: expression,
-        next_index,
-    } = parse_expr(&tokens[3..semi_location]).map_err(|err| err.relative_to(3))?;
+    let expr = parse_expr(&tokens[3..semi_location]).map_err(|err| err.relative_to(3))?;
 
     Ok(FoundStmt {
         stmt: Stmt::VarAssign(VarAssign {
             ident: identifier.kind.clone().ident().unwrap(),
-            value: expression,
+            value: expr,
         }),
         next_index: semi_location + 1,
     })
@@ -125,13 +119,11 @@ fn parse_while_loop(tokens: &[Token]) -> Result<FoundStmt, Error> {
     tokens.get_token_kind(0, ShallowTokenKind::While)?;
 
     let closing_paren_index = (&tokens[1..])
-        .locate_last_matched_right(ShallowTokenKind::LeftParen, ShallowTokenKind::RightParen)?
+        .locate_last_matched_right(ShallowTokenKind::LeftParen, ShallowTokenKind::RightParen)
+        .map_err(|err| err.relative_to(1))?
         + 1;
 
-    let FoundExpr {
-        expr: expression,
-        next_index,
-    } = parse_expr(&tokens[2..closing_paren_index])?;
+    let expr = parse_expr(&tokens[2..closing_paren_index])?;
 
     let FoundBody {
         body,
@@ -141,7 +133,7 @@ fn parse_while_loop(tokens: &[Token]) -> Result<FoundStmt, Error> {
 
     Ok(FoundStmt {
         stmt: Stmt::WhileLoop(ast::WhileLoop {
-            condition: expression,
+            condition: expr,
             body,
         }),
         next_index: closing_paren_index + 1 + after_body + 1,
@@ -153,13 +145,12 @@ fn parse_return(tokens: &[Token]) -> Result<FoundStmt, Error> {
 
     let final_semi = tokens.locate_first(ShallowTokenKind::Semicolon)?;
 
-    let expr = if (final_semi == 1) {
+    let expr = if final_semi == 1 {
         None
     } else {
         Some(
             super::expr_parsers::parse_expr(&tokens[1..final_semi])
-                .map_err(|err| err.relative_to(1))?
-                .expr,
+                .map_err(|err| err.relative_to(1))?,
         )
     };
 
@@ -173,13 +164,12 @@ fn parse_if_else(tokens: &[Token]) -> Result<FoundStmt, Error> {
     tokens.get_token_kind(0, ShallowTokenKind::If)?;
 
     let closing_paren_index = (&tokens[1..])
-        .locate_last_matched_right(ShallowTokenKind::LeftParen, ShallowTokenKind::RightParen)?
+        .locate_last_matched_right(ShallowTokenKind::LeftParen, ShallowTokenKind::RightParen)
+        .map_err(|err| err.relative_to(1))?
         + 1;
 
-    let FoundExpr {
-        expr: condition,
-        next_index,
-    } = parse_expr(&tokens[2..closing_paren_index])?;
+    let condition =
+        parse_expr(&tokens[2..closing_paren_index]).map_err(|err| err.relative_to(2))?;
 
     let FoundBody {
         body: true_branch,
@@ -242,7 +232,7 @@ fn parse_expr_stmt(tokens: &[Token]) -> Result<FoundStmt, Error> {
     let expr = super::expr_parsers::parse_expr(&tokens[..final_semi])?;
 
     Ok(FoundStmt {
-        stmt: Stmt::Expr(expr.expr),
+        stmt: Stmt::Expr(expr),
         next_index: final_semi + 1,
     })
 }

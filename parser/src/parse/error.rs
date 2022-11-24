@@ -31,6 +31,9 @@ pub enum ErrorKind {
     ExpectedLiteral {
         received: Option<Token>,
     },
+    FailedToConsume,
+    NoValidExpr,
+    NoTokensProvided,
 }
 
 impl Error {
@@ -62,6 +65,27 @@ impl Error {
         Self {
             index: at_index,
             kind: ErrorKind::ExpectedLiteral { received },
+        }
+    }
+
+    pub fn failed_to_consume(at_index: usize) -> Self {
+        Self {
+            index: at_index,
+            kind: ErrorKind::FailedToConsume,
+        }
+    }
+
+    pub fn no_valid_expr(at_index: usize) -> Self {
+        Self {
+            index: at_index,
+            kind: ErrorKind::NoValidExpr,
+        }
+    }
+
+    pub fn no_tokens_provided() -> Self {
+        Self {
+            index: 0,
+            kind: ErrorKind::NoTokensProvided,
         }
     }
 }

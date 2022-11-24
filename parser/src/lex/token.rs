@@ -72,6 +72,8 @@ define_token_types! {
     RightParen,
     LeftBrace,
     RightBrace,
+    LeftBracket,
+    RightBracket,
     Comma,
     Equals,
     DoubleEquals,

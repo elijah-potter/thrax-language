@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 use std::fs::read;
 use std::path::PathBuf;
 

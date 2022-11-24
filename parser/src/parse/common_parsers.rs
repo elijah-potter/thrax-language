@@ -1,14 +1,27 @@
 use ast::Expr;
 
-use super::expr_parsers::{parse_expr, FoundExpr};
+use super::expr_parsers::parse_expr;
 use super::tokens_ext::TokensExt;
 use super::Error;
 use crate::lex::{ShallowTokenKind, Token};
 
 #[derive(Debug, Clone)]
 pub struct FoundExprList {
-    pub exprs: Vec<Expr>,
+    pub items: Vec<FoundExprListItem>,
     pub next_index: usize,
+}
+
+impl FoundExprList {
+    /// Consuming iterator over constituent `Expr`s
+    pub fn iter_exprs(self) -> impl Iterator<Item = Expr> {
+        self.items.into_iter().map(|t| t.expr)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FoundExprListItem {
+    pub expr: Expr,
+    pub found_at: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -19,50 +32,70 @@ pub struct FoundPropIdentList {
 
 pub fn parse_expr_list(
     tokens: &[Token],
-    seperator: ShallowTokenKind,
+    separator: ShallowTokenKind,
+    open: ShallowTokenKind,
+    close: ShallowTokenKind,
 ) -> Result<FoundExprList, Error> {
-    let closing_paren_index = tokens
-        .locate_last_matched_right(ShallowTokenKind::LeftParen, ShallowTokenKind::RightParen)?;
+    let closing_index = tokens.locate_last_matched_right(open, close)?;
 
-    let mut items = Vec::new();
-
-    let mut current = 1;
-
-    while let Ok(sep_index) = tokens[current..closing_paren_index].locate_first(seperator) {
-        let FoundExpr {
-            expr: expression, ..
-        } = parse_expr(&tokens[current..][..sep_index]).map_err(|err| err.relative_to(current))?;
-        items.push(expression);
-        current = current + sep_index + 1;
+    if closing_index == 1 {
+        return Ok(FoundExprList {
+            items: Vec::new(),
+            next_index: 2,
+        });
     }
 
-    if let Ok(FoundExpr {
-        expr: expression, ..
-    }) =
-        parse_expr(&tokens[current..closing_paren_index]).map_err(|err| err.relative_to(current))
-    {
-        items.push(expression);
+    let mut current_start = 1;
+    let mut items = Vec::new();
+    let mut d = 0;
+
+    while current_start < closing_index {
+        let current = &tokens[current_start..closing_index - d];
+
+        if current.len() == 0 {
+            return Err(Error::no_valid_expr(current_start));
+        }
+
+        match parse_expr(current) {
+            Ok(expr) => {
+                items.push(FoundExprListItem {
+                    expr,
+                    found_at: current_start,
+                });
+                current_start += current.len() + 1;
+                d = 0;
+            }
+            Err(_) => d += 1,
+        }
     }
 
     Ok(FoundExprList {
-        exprs: items,
-        next_index: closing_paren_index + 1,
+        items,
+        next_index: closing_index + 1,
     })
 }
 
 /// Given "(a + b)", should return `[a, b]`
 /// TODO: Use above function
 pub fn parse_prop_ident_list(tokens: &[Token]) -> Result<FoundPropIdentList, Error> {
-    let FoundExprList { exprs, next_index } = parse_expr_list(tokens, ShallowTokenKind::Comma)?;
+    let FoundExprList { items, next_index } = parse_expr_list(
+        tokens,
+        ShallowTokenKind::Comma,
+        ShallowTokenKind::LeftParen,
+        ShallowTokenKind::RightParen,
+    )?;
 
     let mut prop_idents = Vec::new();
 
-    for expr in exprs {
-        if let Some(ident) = expr.ident() {
+    for item in items {
+        if let Some(ident) = item.expr.ident() {
             prop_idents.push(ident);
         } else {
-            // TODO: Revise this after adding span to errors
-            return Err(Error::expected_token(0, ShallowTokenKind::Ident, None));
+            return Err(Error::expected_token(
+                item.found_at,
+                ShallowTokenKind::Ident,
+                Some(tokens[item.found_at].clone()),
+            ));
         }
     }
 
@@ -75,13 +108,19 @@ pub fn parse_prop_ident_list(tokens: &[Token]) -> Result<FoundPropIdentList, Err
 #[cfg(test)]
 mod tests {
     use super::{parse_expr_list, parse_prop_ident_list};
+    use crate::lex::ShallowTokenKind;
     use crate::test_utils::tokenize;
 
     #[test]
     fn parses_empty_expr_list() {
         let tokens = tokenize("()");
 
-        let res = parse_expr_list(&tokens, crate::lex::ShallowTokenKind::Comma);
+        let res = parse_expr_list(
+            &tokens,
+            ShallowTokenKind::Comma,
+            ShallowTokenKind::LeftParen,
+            ShallowTokenKind::RightParen,
+        );
 
         res.unwrap();
     }

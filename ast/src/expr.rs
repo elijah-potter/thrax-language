@@ -6,6 +6,7 @@ pub enum Expr {
     NumberLiteral(f64),
     StringLiteral(String),
     BoolLiteral(bool),
+    ArrayLiteral(Vec<Expr>),
     BinaryOp(BinaryOp),
     FnCall(FnCall),
 }

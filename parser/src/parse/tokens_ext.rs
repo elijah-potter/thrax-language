@@ -1,6 +1,6 @@
 use ast::BinaryOpKind;
 
-use crate::lex::{ShallowTokenKind, Token, TokenKind};
+use crate::lex::{ShallowTokenKind, Token};
 use crate::parse::Error;
 
 pub struct LocatedBinaryOp {

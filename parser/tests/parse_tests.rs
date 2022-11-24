@@ -15,4 +15,5 @@ macro_rules! create_test {
 
 create_test!(while_loop);
 create_test!(fib);
-create_test!(empty_function);
+create_test!(empty_fn);
+create_test!(add_fns);

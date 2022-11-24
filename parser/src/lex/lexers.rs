@@ -148,6 +148,8 @@ lex_chars_to! {
     ")" => RightParen,
     "{" => LeftBrace,
     "}" => RightBrace,
+    "[" => LeftBracket,
+    "]" => RightBracket,
     "," => Comma,
     "==" => DoubleEquals,
     "=" => Equals,
