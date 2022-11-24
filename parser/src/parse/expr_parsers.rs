@@ -54,25 +54,25 @@ fn parse_binary_op(tokens: &[Token]) -> Result<Expr, Error> {
     // If not, check next op
     let mut scan_start = 0;
 
-    let (a, b, kind) = loop{
-        let LocatedBinaryOp { op, location } = (&tokens[scan_start..]).locate_first_binary_op().map_err(|err| err.relative_to(scan_start))?;
+    let (a, b, kind) = loop {
+        let LocatedBinaryOp { op, location } = tokens.locate_first_binary_op(scan_start)?;
 
         // a + b
-        let a_tokens = &tokens[..location + scan_start];
+        let a_tokens = &tokens[..location];
         let Ok(a) = parse_expr(a_tokens) else{
-            scan_start += location + 1;
+            scan_start = location + 1;
             continue;
         };
 
-        let b_tokens = &tokens[location + scan_start + 1..];
+        let b_tokens = &tokens[location + 1..];
         let Ok(b) = parse_expr(b_tokens) else{
-            scan_start += location + 1;
+            scan_start = location + 1;
             continue;
         };
-        
+
         let consumed_token_count = a_tokens.len() + b_tokens.len() + 1;
-        if consumed_token_count != tokens.len(){
-            return Err(Error::failed_to_consume(consumed_token_count))
+        if consumed_token_count != tokens.len() {
+            return Err(Error::failed_to_consume(consumed_token_count));
         }
 
         break (a, b, op);
@@ -88,8 +88,6 @@ fn parse_binary_op(tokens: &[Token]) -> Result<Expr, Error> {
 fn parse_fn_call(tokens: &[Token]) -> Result<Expr, Error> {
     let identifier = tokens.get_token_kind(0, ShallowTokenKind::Ident)?;
 
-    dbg!("ident");
-
     let found_list = parse_expr_list(
         &tokens[1..],
         ShallowTokenKind::Comma,
@@ -98,15 +96,12 @@ fn parse_fn_call(tokens: &[Token]) -> Result<Expr, Error> {
     )
     .map_err(|err| err.relative_to(1))?;
 
-    dbg!("list");
-    dbg!(&found_list);
-
     if found_list.next_index + 1 != tokens.len() {
         return Err(Error::failed_to_consume(found_list.next_index));
     }
 
     Ok(Expr::FnCall(FnCall {
-        ident: identifier.kind.clone().ident().unwrap(),
+        ident: identifier.clone().ident().unwrap(),
         args: found_list.iter_exprs().collect(),
     }))
 }

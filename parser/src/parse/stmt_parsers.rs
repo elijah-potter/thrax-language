@@ -59,13 +59,13 @@ fn parse_var_decl(tokens: &[Token]) -> Result<FoundStmt, Error> {
 
     tokens.get_token_kind(2, ShallowTokenKind::Equals)?;
 
-    let semi_location = tokens.locate_first(ShallowTokenKind::Semicolon)?;
+    let semi_location = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
 
     let expr = parse_expr(&tokens[3..semi_location]).map_err(|err| err.relative_to(3))?;
 
     Ok(FoundStmt {
         stmt: Stmt::VarDecl(VarDecl {
-            ident: identifier.kind.clone().ident().unwrap(),
+            ident: identifier.clone().ident().unwrap(),
             initializer: expr,
         }),
         next_index: semi_location + 1,
@@ -77,13 +77,13 @@ fn parse_var_assign(tokens: &[Token]) -> Result<FoundStmt, Error> {
 
     tokens.get_token_kind(2, ShallowTokenKind::Equals)?;
 
-    let semi_location = tokens.locate_first(ShallowTokenKind::Semicolon)?;
+    let semi_location = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
 
     let expr = parse_expr(&tokens[3..semi_location]).map_err(|err| err.relative_to(3))?;
 
     Ok(FoundStmt {
         stmt: Stmt::VarAssign(VarAssign {
-            ident: identifier.kind.clone().ident().unwrap(),
+            ident: identifier.clone().ident().unwrap(),
             value: expr,
         }),
         next_index: semi_location + 1,
@@ -107,11 +107,11 @@ fn parse_fn_decl(tokens: &[Token]) -> Result<FoundStmt, Error> {
 
     Ok(FoundStmt {
         stmt: Stmt::FnDecl(FnDecl {
-            ident: identifier.kind.clone().ident().unwrap(),
+            ident: identifier.clone().ident().unwrap(),
             prop_idents,
             body,
         }),
-        next_index: next_index + 3 + after_body + 1,
+        next_index: next_index + 2 + after_body,
     })
 }
 
@@ -143,7 +143,7 @@ fn parse_while_loop(tokens: &[Token]) -> Result<FoundStmt, Error> {
 fn parse_return(tokens: &[Token]) -> Result<FoundStmt, Error> {
     tokens.get_token_kind(0, ShallowTokenKind::Return)?;
 
-    let final_semi = tokens.locate_first(ShallowTokenKind::Semicolon)?;
+    let final_semi = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
 
     let expr = if final_semi == 1 {
         None
@@ -227,7 +227,7 @@ fn parse_if_else(tokens: &[Token]) -> Result<FoundStmt, Error> {
 }
 
 fn parse_expr_stmt(tokens: &[Token]) -> Result<FoundStmt, Error> {
-    let final_semi = tokens.locate_first(ShallowTokenKind::Semicolon)?;
+    let final_semi = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
 
     let expr = super::expr_parsers::parse_expr(&tokens[..final_semi])?;
 

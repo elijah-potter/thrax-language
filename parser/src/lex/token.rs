@@ -44,8 +44,6 @@ macro_rules! define_token_types {
                 $kind,
             )*
         }
-
-
     };
 }
 

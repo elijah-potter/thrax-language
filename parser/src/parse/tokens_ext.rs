@@ -1,5 +1,6 @@
 use ast::BinaryOpKind;
 
+use crate::TokenKind;
 use crate::lex::{ShallowTokenKind, Token};
 use crate::parse::Error;
 
@@ -13,15 +14,15 @@ pub trait TokensExt {
         &'a self,
         index: usize,
         kind: ShallowTokenKind,
-    ) -> Result<&'a Token, Error>;
-    fn locate_first(&self, kind: ShallowTokenKind) -> Result<usize, Error>;
+    ) -> Result<&'a TokenKind, Error>;
+    fn locate_first(&self, starting_at: usize, kind: ShallowTokenKind) -> Result<usize, Error>;
     fn get_binary_op(&self, index: usize) -> Result<BinaryOpKind, Error>;
     fn locate_last_matched_right(
         &self,
         left: ShallowTokenKind,
         right: ShallowTokenKind,
     ) -> Result<usize, Error>;
-    fn locate_first_binary_op(&self) -> Result<LocatedBinaryOp, Error>;
+    fn locate_first_binary_op(&self, starting_at: usize) -> Result<LocatedBinaryOp, Error>;
 }
 
 impl TokensExt for [Token] {
@@ -29,25 +30,26 @@ impl TokensExt for [Token] {
         &'a self,
         index: usize,
         kind: ShallowTokenKind,
-    ) -> Result<&'a Token, Error> {
+    ) -> Result<&'a TokenKind, Error> {
         let token = self
             .get(index)
             .ok_or(Error::expected_token(index, kind, None))?;
 
         if token.kind.as_shallow() == kind {
-            Ok(token)
+            Ok(&token.kind)
         } else {
             Err(Error::expected_token(index, kind, Some(token.clone())))
         }
     }
 
-    fn locate_first(&self, kind: ShallowTokenKind) -> Result<usize, Error> {
+    fn locate_first(&self, starting_at: usize, kind: ShallowTokenKind) -> Result<usize, Error> {
         if self.len() == 0 {
             return Err(Error::expected_token(0, kind, None));
         }
 
         self.iter()
             .enumerate()
+            .skip(starting_at)
             .find_map(|(index, token)| (token.kind.as_shallow() == kind).then_some(index))
             .ok_or(Error::expected_token(
                 self.len() - 1,
@@ -98,12 +100,12 @@ impl TokensExt for [Token] {
         Err(Error::expected_token(self.len() - 1, right, None))
     }
 
-    fn locate_first_binary_op(&self) -> Result<LocatedBinaryOp, Error> {
+    fn locate_first_binary_op(&self, starting_at: usize) -> Result<LocatedBinaryOp, Error> {
         if self.len() == 0 {
             return Err(Error::expected_binary_operator(0, None));
         }
 
-        for (index, token) in self.iter().enumerate() {
+        for (index, token) in self.iter().enumerate().skip(starting_at) {
             if let Some(op) = token.kind.as_binary_op() {
                 return Ok(LocatedBinaryOp {
                     op,
