@@ -1,7 +1,8 @@
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 
 use ast::{BinaryOpKind, Stmt};
 
+use crate::context::Returnable;
 use crate::error::Error;
 
 /// [Value] is a dynamically typed nullable value.
@@ -13,7 +14,7 @@ macro_rules! define_value_types {
         _
     };
     ($($kind:ident$(($contains:ty))?),*) => {
-        #[derive(Debug, Clone)]
+        #[derive(Clone)]
         pub enum Value {
             $(
                 $kind $(($contains))?,
@@ -58,11 +59,39 @@ define_value_types! {
     Null
 }
 
-/// This is only expressly different from `ast::FnDecl` in that it does not include an ident.
-#[derive(Debug, Clone)]
-pub struct Fn {
-    pub prop_idents: Vec<String>,
-    pub body: Vec<Stmt>,
+impl Display for Value{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self{
+            Value::Number(n) => write!(f, "{}", n),
+            Value::String(s) => write!(f, "{}", s),
+            Value::Bool(b) => write!(f, "{}", b),
+            Value::Array(arr) => {
+                write!(f, "[")?;
+
+                for item in arr.iter().take(arr.len() - 2){
+                    write!(f, "{}, ", item)?;
+                }
+
+                if let Some(item) = arr.last(){
+                    write!(f, "{}", item)?;
+                }
+
+                write!(f, "]")
+            },
+            Value::Fn(_) => write!(f, "Function"),
+            Value::Null => write!(f, "Null"),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum Fn {
+    Native(fn(&[Value]) -> Result<Value, Error>),
+    /// This is only expressly different from `ast::FnDecl` in that it does not include an ident.
+    Interpreted {
+        prop_idents: Vec<String>,
+        body: Vec<Stmt>,
+    },
 }
 
 macro_rules! impl_op {

@@ -75,11 +75,11 @@ fn parse_var_decl(tokens: &[Token]) -> Result<FoundStmt, Error> {
 fn parse_var_assign(tokens: &[Token]) -> Result<FoundStmt, Error> {
     let identifier = tokens.get_token_kind(0, ShallowTokenKind::Ident)?;
 
-    tokens.get_token_kind(2, ShallowTokenKind::Equals)?;
+    tokens.get_token_kind(1, ShallowTokenKind::Equals)?;
 
     let semi_location = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
 
-    let expr = parse_expr(&tokens[3..semi_location]).map_err(|err| err.relative_to(3))?;
+    let expr = parse_expr(&tokens[2..semi_location]).map_err(|err| err.relative_to(3))?;
 
     Ok(FoundStmt {
         stmt: Stmt::VarAssign(VarAssign {
@@ -123,7 +123,7 @@ fn parse_while_loop(tokens: &[Token]) -> Result<FoundStmt, Error> {
         .map_err(|err| err.relative_to(1))?
         + 1;
 
-    let expr = parse_expr(&tokens[2..closing_paren_index])?;
+    let expr = parse_expr(&tokens[2..closing_paren_index]).map_err(|err| err.relative_to(2))?;
 
     let FoundBody {
         body,

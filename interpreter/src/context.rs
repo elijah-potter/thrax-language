@@ -1,20 +1,19 @@
 use std::collections::HashMap;
 
 use ast::{BinaryOp, Expr, FnCall, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
-use is_macro::Is;
 
 use crate::error::Error;
 use crate::value::{Fn, ShallowValue, Value};
 
 type Scope = HashMap<String, Value>;
 
-#[derive(Debug, Clone, Is)]
+#[derive(Clone)]
 pub enum Returnable {
     Returned(Option<Value>),
     Completed,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Context {
     scopes: Vec<Scope>,
 }
@@ -24,6 +23,10 @@ impl Context {
         Self {
             scopes: vec![HashMap::new()],
         }
+    }
+
+    pub fn add_native_function(&mut self, name: String, native_fn: fn(&[Value]) -> Result<Value, Error>){
+        self.current_scope().insert(name, Value::Fn(Fn::Native(native_fn)));
     }
 
     pub fn eval_program(&mut self, program: &Program) -> Result<Returnable, Error> {
@@ -92,7 +95,7 @@ impl Context {
 
         self.current_scope().insert(
             fn_decl.ident.clone(),
-            Value::Fn(Fn {
+            Value::Fn(Fn::Interpreted {
                 prop_idents: fn_decl.prop_idents.clone(),
                 body: fn_decl.body.clone(),
             }),
@@ -182,33 +185,36 @@ impl Context {
                     return Err(Error::TypeError(ShallowValue::Fn, definition.as_shallow()));
                 };
 
-                let scope = self.scope_of_ident(&f.ident)?;
-                let mut old = if scope == self.scopes.len() - 1 {
-                    Vec::new()
-                } else {
-                    self.scopes.split_off(scope + 1)
-                };
+                match df {
+                    Fn::Native(native_fn) => native_fn(&args),
+                    Fn::Interpreted { prop_idents, body } => {
+                        let scope = self.scope_of_ident(&f.ident)?;
+                        let mut old = if scope == self.scopes.len() - 1 {
+                            Vec::new()
+                        } else {
+                            self.scopes.split_off(scope + 1)
+                        };
 
-                let function = &df;
-                let args = &args;
-                // Build current scope with arguments
-                let mut new_scope = Scope::with_capacity(args.len());
-                for (ident, arg) in function.prop_idents.iter().zip(args.iter()) {
-                    new_scope.insert(ident.clone(), arg.clone());
+                        // Build current scope with arguments
+                        let mut new_scope = Scope::with_capacity(args.len());
+                        for (ident, arg) in prop_idents.iter().zip(args.iter()) {
+                            new_scope.insert(ident.clone(), arg.clone());
+                        }
+                        self.scopes.push(new_scope);
+
+                        let res = self.eval_program(&body)?;
+
+                        self.scopes.pop();
+                        // Replace old scopes
+                        self.scopes.append(&mut old);
+
+                        if let Returnable::Returned(r) = res {
+                            return Ok(r.unwrap_or(Value::Null));
+                        }
+
+                        Ok(Value::Null)
+                    }
                 }
-                self.scopes.push(new_scope);
-
-                let res = self.eval_program(&function.body)?;
-
-                self.scopes.pop();
-                // Replace old scopes
-                self.scopes.append(&mut old);
-
-                if let Returnable::Returned(r) = res {
-                    return Ok(r.unwrap_or(Value::Null));
-                }
-
-                Ok(Value::Null)
             }
         }
     }
