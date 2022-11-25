@@ -4,11 +4,17 @@ use std::fs::read;
 use std::path::PathBuf;
 
 use clap::Parser;
+use interpreter::Context;
 use parser::{lex_string, parse_tokens};
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     filename: PathBuf,
+    #[arg(short, long)]
+    ast: bool,
+    #[arg(short, long)]
+    run: bool,
 }
 
 fn main() {
@@ -33,5 +39,13 @@ fn main() {
         }
     };
 
-    eprintln!("{:#?}", ast);
+    if args.ast {
+        eprintln!("{:#?}", ast);
+    }
+
+    if args.run {
+        let mut context = Context::new();
+
+        println!("{:#?}", context.eval_program(&ast));
+    }
 }

@@ -6,4 +6,4 @@ fn fib(n) {
   }
 }
 
-fib(5);
+return fib(7);
