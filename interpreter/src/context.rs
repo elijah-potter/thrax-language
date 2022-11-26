@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 
 use ast::{BinaryOp, Expr, FnCall, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
 
 use crate::error::Error;
+use crate::stack::{FoundIdent, Stack};
 use crate::value::{Fn, ShallowValue, Value};
 
 type Scope = HashMap<String, Value>;
@@ -15,18 +17,23 @@ pub enum Returnable {
 
 #[derive(Clone)]
 pub struct Context {
-    scopes: Vec<Scope>,
+    stack: Stack,
 }
 
 impl Context {
     pub fn new() -> Self {
         Self {
-            scopes: vec![HashMap::new()],
+            stack: Stack::new(),
         }
     }
 
-    pub fn add_native_function(&mut self, name: String, native_fn: fn(&[Value]) -> Result<Value, Error>){
-        self.current_scope().insert(name, Value::Fn(Fn::Native(native_fn)));
+    pub fn add_native_function(
+        &mut self,
+        name: String,
+        native_fn: fn(&[Value]) -> Result<Value, Error>,
+    ) {
+        self.stack
+            .push_value(name, Value::Fn(Fn::Native(native_fn)));
     }
 
     pub fn eval_program(&mut self, program: &Program) -> Result<Returnable, Error> {
@@ -64,14 +71,13 @@ impl Context {
     }
 
     fn eval_var_decl(&mut self, var_decl: &VarDecl) -> Result<(), Error> {
-        let Err(_) = self.value_of_ident(&var_decl.ident) else {
+        let Err(_) = self.find_with_ident(&var_decl.ident) else {
             return Err(Error::Redeclaration(var_decl.ident.clone()));
         };
 
         let initialized = self.eval_expr(&var_decl.initializer)?;
 
-        self.current_scope()
-            .insert(var_decl.ident.clone(), initialized);
+        self.stack.push_value(var_decl.ident.clone(), initialized);
 
         Ok(())
     }
@@ -79,7 +85,7 @@ impl Context {
     fn eval_var_assign(&mut self, var_assign: &VarAssign) -> Result<(), Error> {
         let new_value = self.eval_expr(&var_assign.value)?;
 
-        let Ok(value) = self.value_of_ident(&var_assign.ident) else{
+        let Ok(FoundIdent { value, .. }) = self.find_with_ident(&var_assign.ident) else{
             return Err(Error::Undeclared(var_assign.ident.clone()));
         };
 
@@ -89,11 +95,11 @@ impl Context {
     }
 
     fn eval_fn_decl(&mut self, fn_decl: &FnDecl) -> Result<(), Error> {
-        let Err(_) = self.value_of_ident(&fn_decl.ident) else {
+        let Err(_) = self.find_with_ident(&fn_decl.ident) else {
             return Err(Error::Redeclaration(fn_decl.ident.clone()));
         };
 
-        self.current_scope().insert(
+        self.stack.push_value(
             fn_decl.ident.clone(),
             Value::Fn(Fn::Interpreted {
                 prop_idents: fn_decl.prop_idents.clone(),
@@ -109,11 +115,11 @@ impl Context {
             .eval_expr(&while_loop.condition)?
             .equals(&Value::Bool(true))?
         {
-            self.scopes.push(Scope::new());
+            self.stack.open_frame();
 
             let res = self.eval_program(&while_loop.body)?;
 
-            self.scopes.pop();
+            self.stack.pop_frame();
 
             if let Returnable::Returned(r) = res {
                 return Ok(Returnable::Returned(r));
@@ -133,18 +139,18 @@ impl Context {
             _ => panic!(),
         };
 
-        self.scopes.push(Scope::new());
+        self.stack.open_frame();
 
         let res = self.eval_program(branch);
 
-        self.scopes.pop();
+        self.stack.pop_frame();
 
         res
     }
 
     fn eval_expr(&mut self, expr: &Expr) -> Result<Value, Error> {
         match expr {
-            Expr::Ident(i) => self.value_of_ident(i.as_str()).cloned(),
+            Expr::Ident(i) => self.find_with_ident(i.as_str()).map(|v| v.value.clone()),
             Expr::NumberLiteral(n) => Ok(Value::Number(*n)),
             Expr::StringLiteral(s) => Ok(Value::String(s.clone())),
             Expr::BoolLiteral(b) => Ok(Value::Bool(*b)),
@@ -179,34 +185,31 @@ impl Context {
                 }
 
                 // There's got to be a way around this clone
-                let definition = self.value_of_ident(&f.ident)?.clone();
+                let FoundIdent {
+                    value: definition,
+                    index: definition_index
+                } = self.find_with_ident(&f.ident)?;
 
-                let Value::Fn(df) = definition else{
+                let Value::Fn(df) = definition.clone() else{
                     return Err(Error::TypeError(ShallowValue::Fn, definition.as_shallow()));
                 };
 
                 match df {
                     Fn::Native(native_fn) => native_fn(&args),
                     Fn::Interpreted { prop_idents, body } => {
-                        let scope = self.scope_of_ident(&f.ident)?;
-                        let mut old = if scope == self.scopes.len() - 1 {
-                            Vec::new()
-                        } else {
-                            self.scopes.split_off(scope + 1)
-                        };
+                        let old = self.stack.pop_until_index(definition_index);
 
-                        // Build current scope with arguments
-                        let mut new_scope = Scope::with_capacity(args.len());
-                        for (ident, arg) in prop_idents.iter().zip(args.iter()) {
-                            new_scope.insert(ident.clone(), arg.clone());
+                        let mut new_scope = Vec::with_capacity(args.len());
+                        for (ident, value) in prop_idents.iter().zip(args.iter()) {
+                            new_scope.push((ident.clone(), value.clone()));
                         }
-                        self.scopes.push(new_scope);
+                        self.stack.push_frame(new_scope);
 
                         let res = self.eval_program(&body)?;
 
-                        self.scopes.pop();
+                        self.stack.pop_frame();
                         // Replace old scopes
-                        self.scopes.append(&mut old);
+                        self.stack.push_popped_stack(old);
 
                         if let Returnable::Returned(r) = res {
                             return Ok(r.unwrap_or(Value::Null));
@@ -219,24 +222,10 @@ impl Context {
         }
     }
 
-    fn current_scope(&mut self) -> &mut Scope {
-        self.scopes.last_mut().unwrap()
-    }
-
-    fn value_of_ident<'a>(&'a mut self, ident: &str) -> Result<&'a mut Value, Error> {
-        self.scopes
-            .iter_mut()
-            .rev()
-            .find_map(|scope| scope.get_mut(ident))
-            .ok_or(Error::UndefinedAccess(ident.to_string()))
-    }
-
-    fn scope_of_ident(&self, ident: &str) -> Result<usize, Error> {
-        self.scopes
-            .iter()
-            .enumerate()
-            .rev()
-            .find_map(|(index, scope)| scope.get(ident).map(|_| index))
-            .ok_or(Error::UndefinedAccess(ident.to_string()))
+    pub fn find_with_ident<'a>(&'a mut self, ident: &str) -> Result<FoundIdent<'a>, Error> {
+        self.stack
+            .find_with_ident(ident)
+            .ok_or(Error::Undeclared(ident.to_string()))
     }
 }
+

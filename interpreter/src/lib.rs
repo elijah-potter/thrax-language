@@ -2,8 +2,9 @@
 
 mod context;
 mod error;
+mod stack;
 mod value;
 
 pub use context::Context;
-pub use value::Value;
 pub use error::Error;
+pub use value::Value;
