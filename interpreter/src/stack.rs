@@ -4,7 +4,7 @@ use crate::Value;
 
 pub struct FoundIdent<'a> {
     pub value: &'a mut Value,
-    pub index: usize
+    pub index: usize,
 }
 
 #[derive(Clone)]
@@ -48,18 +48,27 @@ impl Stack {
     }
 
     /// Pop all elements after specific index
-    pub fn pop_until_index(&mut self, index: usize) -> PoppedStack{
+    pub fn pop_until_index(&mut self, index: usize) -> PoppedStack {
         let values = self.values.split_off(index + 1);
 
-        let containing_frame = self.frames.iter().enumerate().rev().find_map(|(i, f)| (*f <= index).then(|| i)).unwrap();
+        let containing_frame = self
+            .frames
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(i, f)| (*f <= index).then(|| i))
+            .unwrap();
 
         let frames = self.frames.split_off(containing_frame + 1);
 
-        PoppedStack { values , frames }
+        PoppedStack { values, frames }
     }
 
-    pub fn push_popped_stack(&mut self, popped: PoppedStack){
-        let PoppedStack {mut values, mut frames} = popped;
+    pub fn push_popped_stack(&mut self, popped: PoppedStack) {
+        let PoppedStack {
+            mut values,
+            mut frames,
+        } = popped;
         self.values.append(&mut values);
         self.frames.append(&mut frames);
     }
@@ -70,17 +79,15 @@ impl Stack {
             .iter_mut()
             .enumerate()
             .rev()
-            .find_map(|(index, s)| {
-                s.0.eq(ident).then(|| (index, &mut s.1))
-            })?;
+            .find_map(|(index, s)| s.0.eq(ident).then(|| (index, &mut s.1)))?;
 
         Some(FoundIdent { value, index })
     }
 }
 
-impl Display for Stack{
+impl Display for Stack {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for (frame, value) in self.frames.iter().zip(&self.values){
+        for (frame, value) in self.frames.iter().zip(&self.values) {
             writeln!(f, "{frame}\t{} = {}", value.0, value.1)?;
         }
 

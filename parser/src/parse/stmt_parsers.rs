@@ -136,7 +136,7 @@ fn parse_while_loop(tokens: &[Token]) -> Result<FoundStmt, Error> {
             condition: expr,
             body,
         }),
-        next_index: closing_paren_index + 1 + after_body + 1,
+        next_index: closing_paren_index + 1 + after_body,
     })
 }
 

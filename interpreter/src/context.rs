@@ -1,7 +1,12 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+
 use ast::{BinaryOp, Expr, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
 
 use crate::error::Error;
 use crate::stack::{FoundIdent, Stack};
+use crate::stdlib::add_stdlib;
 use crate::value::{Fn, ShallowValue, Value};
 
 #[derive(Clone)]
@@ -13,12 +18,14 @@ pub enum Returnable {
 #[derive(Clone)]
 pub struct Context {
     stack: Stack,
+    arrays: HashMap<usize, Vec<Value>>,
 }
 
 impl Context {
     pub fn new() -> Self {
         Self {
             stack: Stack::new(),
+            arrays: HashMap::new(),
         }
     }
 
@@ -29,6 +36,11 @@ impl Context {
     ) {
         self.stack
             .push_value(name, Value::Fn(Fn::Native(native_fn)));
+    }
+
+    /// Courtesey wrapper for [crate::stdlib::add_stdlib]
+    pub fn add_stdlib(&mut self) {
+        add_stdlib(self)
     }
 
     pub fn eval_program(&mut self, program: &Program) -> Result<Returnable, Error> {
@@ -145,7 +157,7 @@ impl Context {
 
     fn eval_expr(&mut self, expr: &Expr) -> Result<Value, Error> {
         match expr {
-            Expr::Ident(i) => self.find_with_ident(i.as_str()).map(|v| v.value.clone()),
+            Expr::Ident(i) => self.find_with_ident(&i).map(|v| v.value.clone()),
             Expr::NumberLiteral(n) => Ok(Value::Number(*n)),
             Expr::StringLiteral(s) => Ok(Value::String(s.clone())),
             Expr::BoolLiteral(b) => Ok(Value::Bool(*b)),
@@ -155,7 +167,7 @@ impl Context {
                     let result = self.eval_expr(expr)?;
                     results.push(result);
                 }
-                Ok(Value::Array(results))
+                Ok(Value::Array(Rc::new(RefCell::new(results))))
             }
             Expr::BinaryOp(BinaryOp { kind, a, b }) => {
                 let c_a = self.eval_expr(a)?;
@@ -182,7 +194,7 @@ impl Context {
                 // There's got to be a way around this clone
                 let FoundIdent {
                     value: definition,
-                    index: definition_index
+                    index: definition_index,
                 } = self.find_with_ident(&f.ident)?;
 
                 let Value::Fn(df) = definition.clone() else{
@@ -195,6 +207,14 @@ impl Context {
                         let old = self.stack.pop_until_index(definition_index);
 
                         let mut new_scope = Vec::with_capacity(args.len());
+
+                        if (args.len() != prop_idents.len()) {
+                            return Err(Error::IncorrectArgumentCount(
+                                prop_idents.len(),
+                                args.len(),
+                            ));
+                        }
+
                         for (ident, value) in prop_idents.iter().zip(args.iter()) {
                             new_scope.push((ident.clone(), value.clone()));
                         }
@@ -223,4 +243,3 @@ impl Context {
             .ok_or(Error::Undeclared(ident.to_string()))
     }
 }
-

@@ -6,4 +6,15 @@ fn fib(n) {
   }
 }
 
-return fib(13);
+let results = [];
+
+let i = 0;
+
+while (i < 10){
+  push(results, fib(i));
+  i = i + 1;
+}
+
+push(results, fib(i));
+
+return results;

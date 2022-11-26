@@ -17,4 +17,8 @@ pub enum Error {
     InvalidBinaryOpArgs(ShallowValue, ShallowValue, BinaryOpKind),
     #[error("Attempted to access non-existant variable {0}.")]
     UndefinedAccess(String),
+    /// 0 => # of args requested
+    /// 1 => # of args supplied
+    #[error("Function requires {1} arguments, but was supplied {0}")]
+    IncorrectArgumentCount(usize, usize),
 }

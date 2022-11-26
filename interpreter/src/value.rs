@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
+use std::rc::Rc;
 
 use ast::{BinaryOpKind, Stmt};
 
@@ -54,7 +56,7 @@ define_value_types! {
     Number(f64),
     String(String),
     Bool(bool),
-    Array(Vec<Value>),
+    Array(Rc<RefCell<Vec<Value>>>),
     Fn(Fn),
     Null
 }
@@ -68,8 +70,12 @@ impl Display for Value {
             Value::Array(arr) => {
                 write!(f, "[")?;
 
-                for item in arr.iter().take(arr.len() - 2) {
-                    write!(f, "{}, ", item)?;
+                let arr = arr.borrow();
+
+                if arr.len() > 1 {
+                    for item in arr.iter().take(arr.len() - 1) {
+                        write!(f, "{}, ", item)?;
+                    }
                 }
 
                 if let Some(item) = arr.last() {

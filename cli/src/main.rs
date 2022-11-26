@@ -4,7 +4,7 @@ use std::fs::read;
 use std::path::PathBuf;
 
 use clap::Parser;
-use interpreter::{Context, Value, Returnable};
+use interpreter::{Context, Returnable, ShallowValue, Value};
 use parser::{lex_string, parse_tokens};
 
 #[derive(Parser, Debug)]
@@ -45,18 +45,12 @@ fn main() {
 
     if args.run {
         let mut context = Context::new();
-        context.add_native_function("println".to_string(), |args| {
-            for arg in args {
-                print!("{}\t", arg);
-            }
-            println!();
-            Ok(Value::Null)
-        });
+        context.add_stdlib();
 
         match context.eval_program(&ast) {
             Err(err) => println!("{:#?}", err),
             Ok(Returnable::Returned(Some(v))) => println!("{v}"),
-            _ => ()
+            _ => (),
         }
     }
 }
