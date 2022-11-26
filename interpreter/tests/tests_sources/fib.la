@@ -6,11 +6,4 @@ fn fib(n) {
   }
 }
 
-let i = 0;
-
-while (i < 10){
-  println("fib(", i, ")", fib(i));
-
-  i = i + 1;
-}
-
+return fib(13);

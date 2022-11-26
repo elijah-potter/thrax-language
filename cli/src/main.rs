@@ -4,7 +4,7 @@ use std::fs::read;
 use std::path::PathBuf;
 
 use clap::Parser;
-use interpreter::{Context, Value};
+use interpreter::{Context, Value, Returnable};
 use parser::{lex_string, parse_tokens};
 
 #[derive(Parser, Debug)]
@@ -53,8 +53,10 @@ fn main() {
             Ok(Value::Null)
         });
 
-        if let Err(err) = context.eval_program(&ast) {
-            println!("{:#?}", err);
+        match context.eval_program(&ast) {
+            Err(err) => println!("{:#?}", err),
+            Ok(Returnable::Returned(Some(v))) => println!("{v}"),
+            _ => ()
         }
     }
 }

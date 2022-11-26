@@ -51,7 +51,7 @@ impl Stack {
     pub fn pop_until_index(&mut self, index: usize) -> PoppedStack{
         let values = self.values.split_off(index + 1);
 
-        let containing_frame = self.frames.iter().enumerate().rev().find_map(|(i, f)| (*f < index).then(|| i)).unwrap();
+        let containing_frame = self.frames.iter().enumerate().rev().find_map(|(i, f)| (*f <= index).then(|| i)).unwrap();
 
         let frames = self.frames.split_off(containing_frame + 1);
 

@@ -1,13 +1,8 @@
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
-
-use ast::{BinaryOp, Expr, FnCall, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
+use ast::{BinaryOp, Expr, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
 
 use crate::error::Error;
 use crate::stack::{FoundIdent, Stack};
 use crate::value::{Fn, ShallowValue, Value};
-
-type Scope = HashMap<String, Value>;
 
 #[derive(Clone)]
 pub enum Returnable {
