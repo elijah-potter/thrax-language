@@ -6,6 +6,7 @@ use ast::{BinaryOpKind, Stmt};
 
 use crate::context::Returnable;
 use crate::error::Error;
+use crate::Context;
 
 /// [Value] is a dynamically typed nullable value.
 ///
@@ -56,43 +57,14 @@ define_value_types! {
     Number(f64),
     String(String),
     Bool(bool),
-    Array(Rc<RefCell<Vec<Value>>>),
+    Array(usize),
     Fn(Fn),
     Null
 }
 
-impl Display for Value {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::Number(n) => write!(f, "{}", n),
-            Value::String(s) => write!(f, "{}", s),
-            Value::Bool(b) => write!(f, "{}", b),
-            Value::Array(arr) => {
-                write!(f, "[")?;
-
-                let arr = arr.borrow();
-
-                if arr.len() > 1 {
-                    for item in arr.iter().take(arr.len() - 1) {
-                        write!(f, "{}, ", item)?;
-                    }
-                }
-
-                if let Some(item) = arr.last() {
-                    write!(f, "{}", item)?;
-                }
-
-                write!(f, "]")
-            }
-            Value::Fn(_) => write!(f, "Function"),
-            Value::Null => write!(f, "Null"),
-        }
-    }
-}
-
 #[derive(Clone)]
 pub enum Fn {
-    Native(fn(&[Value]) -> Result<Value, Error>),
+    Native(fn(&mut Context, &[Value]) -> Result<Value, Error>),
     /// This is only expressly different from `ast::FnDecl` in that it does not include an ident.
     Interpreted {
         prop_idents: Vec<String>,

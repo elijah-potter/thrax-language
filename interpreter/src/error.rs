@@ -16,7 +16,9 @@ pub enum Error {
     #[error("Attempted to perform a `{:?}` operation with {0} and {1}. This is invalid.", .2)]
     InvalidBinaryOpArgs(ShallowValue, ShallowValue, BinaryOpKind),
     #[error("Attempted to access non-existant variable {0}.")]
-    UndefinedAccess(String),
+    UndefinedStackAccess(String),
+    #[error("Attempted to access non-existant heap item {0}.")]
+    UndefinedHeapAccess(usize),
     /// 0 => # of args requested
     /// 1 => # of args supplied
     #[error("Function requires {1} arguments, but was supplied {0}")]

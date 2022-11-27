@@ -83,14 +83,8 @@ impl Stack {
 
         Some(FoundIdent { value, index })
     }
-}
 
-impl Display for Stack {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for (frame, value) in self.frames.iter().zip(&self.values) {
-            writeln!(f, "{frame}\t{} = {}", value.0, value.1)?;
-        }
-
-        Ok(())
+    pub fn iter_values<'a>(&'a self) -> impl Iterator<Item = &'a Value> {
+        self.values.iter().map(|(_, value)| value)
     }
 }

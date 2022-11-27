@@ -1,10 +1,7 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-
 use ast::{BinaryOp, Expr, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
 
 use crate::error::Error;
+use crate::heap::Heap;
 use crate::stack::{FoundIdent, Stack};
 use crate::stdlib::add_stdlib;
 use crate::value::{Fn, ShallowValue, Value};
@@ -18,21 +15,21 @@ pub enum Returnable {
 #[derive(Clone)]
 pub struct Context {
     stack: Stack,
-    arrays: HashMap<usize, Vec<Value>>,
+    arrays: Heap<Vec<Value>>,
 }
 
 impl Context {
     pub fn new() -> Self {
         Self {
             stack: Stack::new(),
-            arrays: HashMap::new(),
+            arrays: Heap::new(),
         }
     }
 
     pub fn add_native_function(
         &mut self,
         name: String,
-        native_fn: fn(&[Value]) -> Result<Value, Error>,
+        native_fn: fn(&mut Self, &[Value]) -> Result<Value, Error>,
     ) {
         self.stack
             .push_value(name, Value::Fn(Fn::Native(native_fn)));
@@ -50,6 +47,7 @@ impl Context {
             }
         }
 
+        self.collect_garbage();
         Ok(Returnable::Completed)
     }
 
@@ -167,7 +165,7 @@ impl Context {
                     let result = self.eval_expr(expr)?;
                     results.push(result);
                 }
-                Ok(Value::Array(Rc::new(RefCell::new(results))))
+                Ok(Value::Array(self.arrays.push(results)))
             }
             Expr::BinaryOp(BinaryOp { kind, a, b }) => {
                 let c_a = self.eval_expr(a)?;
@@ -202,13 +200,13 @@ impl Context {
                 };
 
                 match df {
-                    Fn::Native(native_fn) => native_fn(&args),
+                    Fn::Native(native_fn) => native_fn(self, &args),
                     Fn::Interpreted { prop_idents, body } => {
                         let old = self.stack.pop_until_index(definition_index);
 
                         let mut new_scope = Vec::with_capacity(args.len());
 
-                        if (args.len() != prop_idents.len()) {
+                        if args.len() != prop_idents.len() {
                             return Err(Error::IncorrectArgumentCount(
                                 prop_idents.len(),
                                 args.len(),
@@ -241,5 +239,27 @@ impl Context {
         self.stack
             .find_with_ident(ident)
             .ok_or(Error::Undeclared(ident.to_string()))
+    }
+    pub fn get_array_mut<'a>(&'a mut self, key: &usize) -> Result<&'a mut Vec<Value>, Error> {
+        self.arrays
+            .get_mut(key)
+            .ok_or(Error::UndefinedHeapAccess(*key))
+    }
+
+    pub fn get_array<'a>(&'a self, key: &usize) -> Result<&'a Vec<Value>, Error> {
+        self.arrays.get(key).ok_or(Error::UndefinedHeapAccess(*key))
+    }
+
+    pub fn collect_garbage(&mut self) {
+        let used_ids: Vec<_> = self
+            .stack
+            .iter_values()
+            .filter_map(|v| match v {
+                Value::Array(arr_id) => Some(*arr_id),
+                _ => None,
+            })
+            .collect();
+
+        self.arrays.filter_keys(used_ids.as_slice());
     }
 }
