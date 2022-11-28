@@ -1,3 +1,5 @@
+use std::collections::{HashSet, VecDeque};
+
 use ast::{BinaryOp, Expr, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
 
 use crate::error::Error;
@@ -16,13 +18,15 @@ pub enum Returnable {
 pub struct Context {
     stack: Stack,
     arrays: Heap<Vec<Value>>,
+    use_gc: bool,
 }
 
 impl Context {
-    pub fn new() -> Self {
+    pub fn new(use_gc: bool) -> Self {
         Self {
             stack: Stack::new(),
             arrays: Heap::new(),
+            use_gc,
         }
     }
 
@@ -47,7 +51,6 @@ impl Context {
             }
         }
 
-        self.collect_garbage();
         Ok(Returnable::Completed)
     }
 
@@ -160,6 +163,10 @@ impl Context {
             Expr::StringLiteral(s) => Ok(Value::String(s.clone())),
             Expr::BoolLiteral(b) => Ok(Value::Bool(*b)),
             Expr::ArrayLiteral(arr) => {
+                if self.use_gc {
+                    self.collect_garbage();
+                }
+
                 let mut results = Vec::with_capacity(arr.len());
                 for expr in arr.into_iter() {
                     let result = self.eval_expr(expr)?;
@@ -240,6 +247,7 @@ impl Context {
             .find_with_ident(ident)
             .ok_or(Error::Undeclared(ident.to_string()))
     }
+
     pub fn get_array_mut<'a>(&'a mut self, key: &usize) -> Result<&'a mut Vec<Value>, Error> {
         self.arrays
             .get_mut(key)
@@ -251,15 +259,50 @@ impl Context {
     }
 
     pub fn collect_garbage(&mut self) {
-        let used_ids: Vec<_> = self
-            .stack
-            .iter_values()
-            .filter_map(|v| match v {
-                Value::Array(arr_id) => Some(*arr_id),
-                _ => None,
-            })
-            .collect();
+        let mut to_search = Vec::new();
 
-        self.arrays.filter_keys(used_ids.as_slice());
+        for item in self.stack.iter_values() {
+            match item {
+                Value::Array(arr_id) => {
+                    to_search.push(*arr_id);
+                }
+                _ => (),
+            }
+        }
+
+        let mut visited = HashSet::new();
+
+        while let Some(arr_id) = to_search.pop() {
+            if visited.contains(&arr_id) {
+                continue;
+            }
+
+            let arr = self.get_array(&arr_id).unwrap();
+
+            visited.insert(arr_id);
+
+            for item in arr {
+                match item {
+                    Value::Array(arr_id) => {
+                        to_search.push(*arr_id);
+                    }
+                    _ => (),
+                }
+            }
+        }
+
+        let visited: Vec<_> = visited.into_iter().collect();
+
+        self.arrays.filter_keys(visited.as_slice());
+    }
+
+    /// Get the number of [Value]'s in the stack
+    pub fn stack_size(&self) -> usize {
+        self.stack.value_len()
+    }
+
+    /// Get the number of arrays in the array heap
+    pub fn array_heap_size(&self) -> usize {
+        self.arrays.len()
     }
 }

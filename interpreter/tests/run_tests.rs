@@ -9,7 +9,7 @@ macro_rules! create_test {
                 let source = include_str!(concat!("./tests_sources/", stringify!($filename), ".la"));
 
                 let ast = parser::parse_string(&source).unwrap();
-                let mut context = Context::new();
+                let mut context = Context::new(true);
                 context.add_stdlib();
 
                 assert!(matches!(context.eval_program(&ast), Ok($e)));

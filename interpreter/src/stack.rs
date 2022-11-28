@@ -47,6 +47,14 @@ impl Stack {
         self.values.push((ident, value))
     }
 
+    pub fn value_len(&self) -> usize {
+        self.values.len()
+    }
+
+    pub fn frame_len(&self) -> usize {
+        self.frames.len()
+    }
+
     /// Pop all elements after specific index
     pub fn pop_until_index(&mut self, index: usize) -> PoppedStack {
         let values = self.values.split_off(index + 1);

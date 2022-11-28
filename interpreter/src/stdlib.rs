@@ -3,7 +3,7 @@ use crate::{Context, Error, ShallowValue, Value};
 pub fn add_stdlib(context: &mut Context) {
     context.add_native_function("println".to_string(), |context, args| {
         for arg in args {
-            println!("{}", value_to_string(context, arg)?);
+            print!("{}", value_to_string(context, arg)?);
         }
         println!();
         Ok(Value::Null)

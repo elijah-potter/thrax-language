@@ -36,4 +36,8 @@ impl<T> Heap<T> {
     pub fn get<'a>(&'a self, key: &usize) -> Option<&'a T> {
         self.items.get(key)
     }
+
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
 }
