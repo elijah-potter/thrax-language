@@ -29,7 +29,7 @@ macro_rules! define_token_types {
         }
 
         impl TokenKind {
-            pub fn as_shallow(&self) -> ShallowTokenKind{
+            #[must_use] pub fn as_shallow(&self) -> ShallowTokenKind{
                 match self{
                     $(
                         Self::$kind$((::paste::paste!{[<_$contains:snake>]}))? => ShallowTokenKind::$kind,
@@ -48,7 +48,7 @@ macro_rules! define_token_types {
 }
 
 impl TokenKind {
-    pub fn as_binary_op(&self) -> Option<BinaryOpKind> {
+    #[must_use] pub fn as_binary_op(&self) -> Option<BinaryOpKind> {
         match self {
             TokenKind::Plus => Some(BinaryOpKind::Add),
             TokenKind::Minus => Some(BinaryOpKind::Subtract),

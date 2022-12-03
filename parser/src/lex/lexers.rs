@@ -58,7 +58,7 @@ pub fn lex_whitespace(source: &[char]) -> usize {
 }
 
 pub fn lex_number(source: &[char]) -> Option<FoundToken> {
-    if source.len() == 0 {
+    if source.is_empty() {
         return None;
     }
 
@@ -96,7 +96,7 @@ fn lex_ident(source: &[char]) -> Option<FoundToken> {
 }
 
 pub fn lex_string(source: &[char]) -> Option<FoundToken> {
-    if *source.get(0)? != '\"' {
+    if *source.first()? != '\"' {
         return None;
     }
 

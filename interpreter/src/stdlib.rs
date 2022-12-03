@@ -20,7 +20,7 @@ pub fn add_stdlib(context: &mut Context) {
                 return Err(Error::TypeError(ShallowValue::Array, first.as_shallow()));
             };
 
-        let owned_arr = context.get_array_mut(arr_id)?;
+        let owned_arr = context.get_array_mut(arr_id);
 
         for arg in args_iter {
             owned_arr.push(arg.clone())
@@ -35,13 +35,13 @@ pub fn value_to_string(context: &Context, value: &Value) -> Result<String, Error
 
     match value {
         Value::Number(n) => Ok(format!("{}", n)),
-        Value::String(s) => Ok(format!("{}", s)),
+        Value::String(s) => Ok(s.to_string()),
         Value::Bool(b) => Ok(format!("{}", b)),
         Value::Array(arr_id) => {
             let mut s = String::new();
             s.push('[');
 
-            let arr = context.get_array(arr_id)?;
+            let arr = context.get_array(arr_id);
 
             if arr.len() > 1 {
                 for item in arr.iter().take(arr.len() - 1) {

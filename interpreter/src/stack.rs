@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+
 
 use crate::Value;
 
@@ -64,7 +64,7 @@ impl Stack {
             .iter()
             .enumerate()
             .rev()
-            .find_map(|(i, f)| (*f <= index).then(|| i))
+            .find_map(|(i, f)| (*f <= index).then_some(i))
             .unwrap();
 
         let frames = self.frames.split_off(containing_frame + 1);
@@ -87,7 +87,7 @@ impl Stack {
             .iter_mut()
             .enumerate()
             .rev()
-            .find_map(|(index, s)| s.0.eq(ident).then(|| (index, &mut s.1)))?;
+            .find_map(|(index, s)| s.0.eq(ident).then_some((index, &mut s.1)))?;
 
         Some(FoundIdent { value, index })
     }

@@ -1,12 +1,13 @@
-use std::cell::RefCell;
-use std::fmt::{Display, Formatter};
-use std::rc::Rc;
+
+use std::fmt::{Display};
+
 
 use ast::{BinaryOpKind, Stmt};
 
-use crate::context::Returnable;
+
 use crate::error::Error;
 use crate::Context;
+use crate::heap::HeapItem;
 
 /// [Value] is a dynamically typed nullable value.
 ///
@@ -25,7 +26,7 @@ macro_rules! define_value_types {
         }
 
         impl Value {
-            pub fn as_shallow(&self) -> ShallowValue{
+            #[must_use] pub fn as_shallow(&self) -> ShallowValue{
                 match self{
                     $(
                         Self::$kind $( (define_value_types!($contains)) )? => ShallowValue::$kind,
@@ -57,7 +58,7 @@ define_value_types! {
     Number(f64),
     String(String),
     Bool(bool),
-    Array(usize),
+    Array(HeapItem<Vec<Value>>),
     Fn(Fn),
     Null
 }

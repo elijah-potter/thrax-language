@@ -1,43 +1,63 @@
-use std::collections::HashMap;
+use std::{collections::{HashMap, HashSet}, alloc::{alloc, Layout, dealloc}, ptr::write};
+
+pub type HeapItem<T> = *mut T;
 
 #[derive(Debug, Clone)]
 pub struct Heap<T> {
-    items: HashMap<usize, T>,
+    allocated: Vec<*mut T>
 }
 
 impl<T> Heap<T> {
     pub fn new() -> Self {
-        Self {
-            items: HashMap::new(),
+        Self{
+            allocated: Vec::new()
         }
     }
 
-    pub fn push(&mut self, item: T) -> usize {
-        // I know this is a really dumb implementation
-        let mut key = self.items.len();
-
-        while self.items.contains_key(&key) {
-            key += 1;
+    pub fn push(&mut self, item: T) -> HeapItem<T> {
+        unsafe {
+            let ptr = alloc(Layout::new::<T>()).cast::<T>();
+            write(ptr, item);
+            self.allocated.push(ptr);
+            ptr
         }
-
-        self.items.insert(key, item);
-
-        key
     }
 
-    pub fn filter_keys(&mut self, to_keep: &[usize]) {
-        self.items.retain(|k, _| to_keep.contains(k))
+    pub fn filter_keys(&mut self, to_keep: &[HeapItem<T>]) {
+        self.allocated.retain(|a|{
+            if !to_keep.contains(a){
+                unsafe{
+                    a.drop_in_place();
+                    dealloc(a.cast::<u8>(), Layout::new::<T>());
+                    false
+                }
+            }else{
+                true
+            }
+        });
     }
 
-    pub fn get_mut<'a>(&'a mut self, key: &usize) -> Option<&'a mut T> {
-        self.items.get_mut(key)
+    pub fn get_mut<'a>(&'a mut self, key: &HeapItem<T>) -> &'a mut T {
+        if self.allocated.contains(&key) {
+            unsafe{
+                &mut **key
+            }
+        } else {
+            panic!("HEAP DOES NOT CONTAIN POINTER")
+        }
     }
 
-    pub fn get<'a>(&'a self, key: &usize) -> Option<&'a T> {
-        self.items.get(key)
+    pub fn get<'a>(&'a self, key: &HeapItem<T>) -> &'a T {
+        if self.allocated.contains(&key) {
+            unsafe{
+                &mut **key
+            }
+        } else {
+            panic!("HEAP DOES NOT CONTAIN POINTER")
+        }
     }
 
     pub fn len(&self) -> usize {
-        self.items.len()
+        self.allocated.len()
     }
 }

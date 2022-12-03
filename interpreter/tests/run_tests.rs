@@ -1,5 +1,5 @@
 use interpreter::{Context, Returnable};
-use parser;
+
 
 macro_rules! create_test {
     ($filename:ident, $e:pat) => {
@@ -22,3 +22,4 @@ create_test!(while_loop, Returnable::Completed);
 create_test!(fib, Returnable::Returned(Some(_)));
 create_test!(empty_fn, Returnable::Completed);
 create_test!(add_fns, Returnable::Completed);
+create_test!(cyclic_arrays, Returnable::Completed);

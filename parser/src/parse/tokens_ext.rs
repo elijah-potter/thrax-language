@@ -43,7 +43,7 @@ impl TokensExt for [Token] {
     }
 
     fn locate_first(&self, starting_at: usize, kind: ShallowTokenKind) -> Result<usize, Error> {
-        if self.len() == 0 {
+        if self.is_empty() {
             return Err(Error::expected_token(0, kind, None));
         }
 
@@ -101,7 +101,7 @@ impl TokensExt for [Token] {
     }
 
     fn locate_first_binary_op(&self, starting_at: usize) -> Result<LocatedBinaryOp, Error> {
-        if self.len() == 0 {
+        if self.is_empty() {
             return Err(Error::expected_binary_operator(0, None));
         }
 

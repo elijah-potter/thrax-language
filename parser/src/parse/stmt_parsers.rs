@@ -118,7 +118,7 @@ fn parse_fn_decl(tokens: &[Token]) -> Result<FoundStmt, Error> {
 fn parse_while_loop(tokens: &[Token]) -> Result<FoundStmt, Error> {
     tokens.get_token_kind(0, ShallowTokenKind::While)?;
 
-    let closing_paren_index = (&tokens[1..])
+    let closing_paren_index = tokens[1..]
         .locate_last_matched_right(ShallowTokenKind::LeftParen, ShallowTokenKind::RightParen)
         .map_err(|err| err.relative_to(1))?
         + 1;
@@ -163,7 +163,7 @@ fn parse_return(tokens: &[Token]) -> Result<FoundStmt, Error> {
 fn parse_if_else(tokens: &[Token]) -> Result<FoundStmt, Error> {
     tokens.get_token_kind(0, ShallowTokenKind::If)?;
 
-    let closing_paren_index = (&tokens[1..])
+    let closing_paren_index = tokens[1..]
         .locate_last_matched_right(ShallowTokenKind::LeftParen, ShallowTokenKind::RightParen)
         .map_err(|err| err.relative_to(1))?
         + 1;

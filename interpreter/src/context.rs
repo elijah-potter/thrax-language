@@ -1,9 +1,9 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashSet};
 
 use ast::{BinaryOp, Expr, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
 
 use crate::error::Error;
-use crate::heap::Heap;
+use crate::heap::{Heap, HeapItem};
 use crate::stack::{FoundIdent, Stack};
 use crate::stdlib::add_stdlib;
 use crate::value::{Fn, ShallowValue, Value};
@@ -22,7 +22,7 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(use_gc: bool) -> Self {
+    #[must_use] pub fn new(use_gc: bool) -> Self {
         Self {
             stack: Stack::new(),
             arrays: Heap::new(),
@@ -39,14 +39,14 @@ impl Context {
             .push_value(name, Value::Fn(Fn::Native(native_fn)));
     }
 
-    /// Courtesey wrapper for [crate::stdlib::add_stdlib]
+    /// Courtesey wrapper for [`crate::stdlib::add_stdlib`]
     pub fn add_stdlib(&mut self) {
         add_stdlib(self)
     }
 
     pub fn eval_program(&mut self, program: &Program) -> Result<Returnable, Error> {
         for stmt in program {
-            if let Returnable::Returned(r) = self.eval_stmt(&stmt)? {
+            if let Returnable::Returned(r) = self.eval_stmt(stmt)? {
                 return Ok(Returnable::Returned(r));
             }
         }
@@ -72,7 +72,7 @@ impl Context {
                     return Ok(Returnable::Returned(None));
                 };
 
-                let returned_value = self.eval_expr(&value)?;
+                let returned_value = self.eval_expr(value)?;
                 Ok(Returnable::Returned(Some(returned_value)))
             }
         }
@@ -158,7 +158,7 @@ impl Context {
 
     fn eval_expr(&mut self, expr: &Expr) -> Result<Value, Error> {
         match expr {
-            Expr::Ident(i) => self.find_with_ident(&i).map(|v| v.value.clone()),
+            Expr::Ident(i) => self.find_with_ident(i).map(|v| v.value.clone()),
             Expr::NumberLiteral(n) => Ok(Value::Number(*n)),
             Expr::StringLiteral(s) => Ok(Value::String(s.clone())),
             Expr::BoolLiteral(b) => Ok(Value::Bool(*b)),
@@ -168,7 +168,7 @@ impl Context {
                 }
 
                 let mut results = Vec::with_capacity(arr.len());
-                for expr in arr.into_iter() {
+                for expr in arr.iter() {
                     let result = self.eval_expr(expr)?;
                     results.push(result);
                 }
@@ -192,7 +192,7 @@ impl Context {
                 let mut args = Vec::with_capacity(f.args.len());
 
                 for arg in &f.args {
-                    let result = self.eval_expr(&arg)?;
+                    let result = self.eval_expr(arg)?;
                     args.push(result);
                 }
 
@@ -248,14 +248,13 @@ impl Context {
             .ok_or(Error::Undeclared(ident.to_string()))
     }
 
-    pub fn get_array_mut<'a>(&'a mut self, key: &usize) -> Result<&'a mut Vec<Value>, Error> {
+    pub fn get_array_mut<'a>(&'a mut self, key: &HeapItem<Vec<Value>>) -> &'a mut Vec<Value> {
         self.arrays
             .get_mut(key)
-            .ok_or(Error::UndefinedHeapAccess(*key))
     }
 
-    pub fn get_array<'a>(&'a self, key: &usize) -> Result<&'a Vec<Value>, Error> {
-        self.arrays.get(key).ok_or(Error::UndefinedHeapAccess(*key))
+    pub fn get_array<'a>(&'a self, key: &HeapItem<Vec<Value>>) -> &'a Vec<Value> {
+        self.arrays.get(key)
     }
 
     pub fn collect_garbage(&mut self) {
@@ -277,7 +276,7 @@ impl Context {
                 continue;
             }
 
-            let arr = self.get_array(&arr_id).unwrap();
+            let arr = self.get_array(&arr_id);
 
             visited.insert(arr_id);
 
@@ -297,12 +296,12 @@ impl Context {
     }
 
     /// Get the number of [Value]'s in the stack
-    pub fn stack_size(&self) -> usize {
+    #[must_use] pub fn stack_size(&self) -> usize {
         self.stack.value_len()
     }
 
     /// Get the number of arrays in the array heap
-    pub fn array_heap_size(&self) -> usize {
+    #[must_use] pub fn array_heap_size(&self) -> usize {
         self.arrays.len()
     }
 }

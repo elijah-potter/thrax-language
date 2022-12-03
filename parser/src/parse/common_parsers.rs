@@ -32,7 +32,7 @@ pub struct FoundPropIdentList {
 
 pub fn parse_expr_list(
     tokens: &[Token],
-    separator: ShallowTokenKind,
+    _separator: ShallowTokenKind,
     open: ShallowTokenKind,
     close: ShallowTokenKind,
 ) -> Result<FoundExprList, Error> {
@@ -52,7 +52,7 @@ pub fn parse_expr_list(
     while current_start < closing_index {
         let current = &tokens[current_start..closing_index - d];
 
-        if current.len() == 0 {
+        if current.is_empty() {
             return Err(Error::no_valid_expr(current_start));
         }
 

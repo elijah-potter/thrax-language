@@ -1,0 +1,20 @@
+let k = 0;
+
+while (k < 100){
+  let test_arr = [];
+  let test_arr_2 = [];
+
+  let i = 0;
+  while (i < 1000){
+    push(test_arr, i);
+    push(test_arr, test_arr_2);
+    let temp = test_arr;
+    test_arr = test_arr_2;
+    test_arr_2 = temp;
+    i = i + 1;
+  }
+
+  println(k);
+
+  k = k + 1;
+}
