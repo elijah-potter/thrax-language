@@ -48,7 +48,8 @@ macro_rules! define_token_types {
 }
 
 impl TokenKind {
-    #[must_use] pub fn as_binary_op(&self) -> Option<BinaryOpKind> {
+    #[must_use]
+    pub fn as_binary_op(&self) -> Option<BinaryOpKind> {
         match self {
             TokenKind::Plus => Some(BinaryOpKind::Add),
             TokenKind::Minus => Some(BinaryOpKind::Subtract),
@@ -89,5 +90,6 @@ define_token_types! {
     ForwardSlash,
     True,
     False,
+    Colon,
     Semicolon
 }

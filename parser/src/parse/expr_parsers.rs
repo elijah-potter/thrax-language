@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ast::{BinaryOp, Expr, FnCall};
 
 use super::common_parsers::parse_expr_list;
@@ -12,6 +14,7 @@ pub fn parse_expr(tokens: &[Token]) -> Result<Expr, Error> {
         parse_fn_call,
         parse_single_token,
         parse_array_literal,
+        parse_object_literal
     ];
 
     let mut last_failure = None;
@@ -114,13 +117,64 @@ fn parse_array_literal(tokens: &[Token]) -> Result<Expr, Error> {
         ShallowTokenKind::RightBracket,
     )?;
 
+    if found_list.next_index != tokens.len(){
+        return Err(Error::failed_to_consume(found_list.next_index));
+    }
+
     Ok(Expr::ArrayLiteral(found_list.iter_exprs().collect()))
+}
+
+fn parse_object_literal(tokens: &[Token]) -> Result<Expr, Error> {
+    let closing_index = tokens
+        .locate_last_matched_right(ShallowTokenKind::LeftBrace, ShallowTokenKind::RightBrace)?;
+
+    if closing_index == 1 {
+        return Ok(Expr::ObjectLiteral(HashMap::new()));
+    }
+
+    if closing_index != tokens.len() - 1 {
+        return Err(Error::failed_to_consume(closing_index));
+    }
+
+    let mut current_start = 1;
+    let mut items = HashMap::new();
+    let mut d = 0;
+
+    while current_start < closing_index {
+        let ident = tokens.get_token_kind(current_start, ShallowTokenKind::Ident)?;
+        tokens.get_token_kind(current_start + 1, ShallowTokenKind::Colon)?;
+        let current = &tokens[current_start + 2..closing_index - d];
+
+        if current.is_empty() {
+            return Err(Error::no_valid_expr(current_start + 3));
+        }
+
+        if d != 0
+            && tokens
+                .get_token_kind(closing_index - d, ShallowTokenKind::Comma)
+                .is_err()
+        {
+            d += 1;
+            continue;
+        }
+
+        match parse_expr(current) {
+            Ok(expr) => {
+                items.insert(ident.as_ident().unwrap().to_string(), expr);
+                current_start += current.len() + 3;
+                d = 0;
+            }
+            Err(_) => d += 1,
+        }
+    }
+
+    Ok(Expr::ObjectLiteral(items))
 }
 
 #[cfg(test)]
 mod tests {
     use super::{parse_array_literal, parse_binary_op};
-    use crate::parse::expr_parsers::parse_fn_call;
+    use crate::parse::expr_parsers::{parse_fn_call, parse_object_literal};
     use crate::test_utils::tokenize;
 
     // TODO: ADD WAY MORE TESTS
@@ -148,6 +202,15 @@ mod tests {
         let tokens = tokenize("[a, b, \"test\", 23, [1, 2]]");
 
         let res = parse_array_literal(&tokens);
+
+        res.unwrap();
+    }
+
+    #[test]
+    fn parses_object_literal() {
+        let tokens = tokenize("{ a: 1, b: 2, arr: [1, 2], str: \"test string\" }");
+
+        let res = parse_object_literal(&tokens);
 
         res.unwrap();
     }

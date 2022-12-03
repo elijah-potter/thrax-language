@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use is_macro::Is;
 
 #[derive(Debug, Is, Clone)]
@@ -7,6 +9,7 @@ pub enum Expr {
     StringLiteral(String),
     BoolLiteral(bool),
     ArrayLiteral(Vec<Expr>),
+    ObjectLiteral(HashMap<String, Expr>),
     BinaryOp(BinaryOp),
     FnCall(FnCall),
 }

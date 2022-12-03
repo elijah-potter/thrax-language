@@ -3,7 +3,7 @@ use crate::{Context, Error, ShallowValue, Value};
 pub fn add_stdlib(context: &mut Context) {
     context.add_native_function("println".to_string(), |context, args| {
         for arg in args {
-            print!("{}", value_to_string(context, arg)?);
+            print!("{}", value_to_string(context, arg));
         }
         println!();
         Ok(Value::Null)
@@ -30,13 +30,13 @@ pub fn add_stdlib(context: &mut Context) {
     });
 }
 /// Convert a [Value] to a human readable [String]
-pub fn value_to_string(context: &Context, value: &Value) -> Result<String, Error> {
+pub fn value_to_string(context: &Context, value: &Value) -> String {
     // This is not elegant
 
     match value {
-        Value::Number(n) => Ok(format!("{}", n)),
-        Value::String(s) => Ok(s.to_string()),
-        Value::Bool(b) => Ok(format!("{}", b)),
+        Value::Number(n) => format!("{}", n),
+        Value::String(s) => s.to_string(),
+        Value::Bool(b) => format!("{}", b),
         Value::Array(arr_id) => {
             let mut s = String::new();
             s.push('[');
@@ -45,20 +45,41 @@ pub fn value_to_string(context: &Context, value: &Value) -> Result<String, Error
 
             if arr.len() > 1 {
                 for item in arr.iter().take(arr.len() - 1) {
-                    s.push_str(value_to_string(context, item)?.as_str());
+                    s.push_str(value_to_string(context, item).as_str());
                     s.push_str(", ");
                 }
             }
 
             if let Some(item) = arr.last() {
-                s.push_str(value_to_string(context, item)?.as_str());
+                s.push_str(value_to_string(context, item).as_str());
             }
 
             s.push(']');
 
-            Ok(s)
+            s
+        },
+        Value::Object(obj_id) => {
+            let mut s = String::new();
+
+            s.push('{');
+
+            let obj = context.get_object(obj_id);
+
+            for (key, value) in obj.iter(){
+                s.push_str(key);
+
+                s.push_str(": ");
+
+                s.push_str(value_to_string(context, value).as_str());
+
+                s.push_str(", ");
+            }
+
+            s.push('}');
+
+            s
         }
-        Value::Fn(_) => Ok("Function".to_string()),
-        Value::Null => Ok("Null".to_string()),
+        Value::Fn(_) => "Function".to_string(),
+        Value::Null => "Null".to_string(),
     }
 }

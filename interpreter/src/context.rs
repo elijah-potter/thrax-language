@@ -1,4 +1,4 @@
-use std::collections::{HashSet};
+use std::collections::{HashSet, HashMap};
 
 use ast::{BinaryOp, Expr, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
 
@@ -18,6 +18,7 @@ pub enum Returnable {
 pub struct Context {
     stack: Stack,
     arrays: Heap<Vec<Value>>,
+    objects: Heap<HashMap<String, Value>>,
     use_gc: bool,
 }
 
@@ -26,6 +27,7 @@ impl Context {
         Self {
             stack: Stack::new(),
             arrays: Heap::new(),
+            objects: Heap::new(),
             use_gc,
         }
     }
@@ -173,6 +175,20 @@ impl Context {
                     results.push(result);
                 }
                 Ok(Value::Array(self.arrays.push(results)))
+            },
+            Expr::ObjectLiteral(obj) => {
+                if self.use_gc {
+                    self.collect_garbage();
+                }
+
+                let mut results = HashMap::with_capacity(obj.len());
+
+                for (key, expr) in obj{
+                    let result = self.eval_expr(expr)?;
+                    results.insert(key.to_string(), result);
+                }
+
+                Ok(Value::Object(self.objects.push(results)))
             }
             Expr::BinaryOp(BinaryOp { kind, a, b }) => {
                 let c_a = self.eval_expr(a)?;
@@ -257,6 +273,15 @@ impl Context {
         self.arrays.get(key)
     }
 
+    pub fn get_object_mut<'a>(&'a mut self, key: &HeapItem<HashMap<String, Value>>) -> &'a mut HashMap<String, Value> {
+        self.objects
+            .get_mut(key)
+    }
+
+    pub fn get_object<'a>(&'a self, key: &HeapItem<HashMap<String, Value>>) -> &'a HashMap<String, Value> {
+        self.objects.get(key)
+    }
+
     pub fn collect_garbage(&mut self) {
         let mut to_search = Vec::new();
 
@@ -296,12 +321,12 @@ impl Context {
     }
 
     /// Get the number of [Value]'s in the stack
-    #[must_use] pub fn stack_size(&self) -> usize {
+    pub fn stack_size(&self) -> usize {
         self.stack.value_len()
     }
 
     /// Get the number of arrays in the array heap
-    #[must_use] pub fn array_heap_size(&self) -> usize {
+    pub fn array_heap_size(&self) -> usize {
         self.arrays.len()
     }
 }

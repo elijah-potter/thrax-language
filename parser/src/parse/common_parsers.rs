@@ -2,7 +2,7 @@ use ast::Expr;
 
 use super::expr_parsers::parse_expr;
 use super::tokens_ext::TokensExt;
-use super::Error;
+use super::{Error, ErrorKind};
 use crate::lex::{ShallowTokenKind, Token};
 
 #[derive(Debug, Clone)]
@@ -32,7 +32,7 @@ pub struct FoundPropIdentList {
 
 pub fn parse_expr_list(
     tokens: &[Token],
-    _separator: ShallowTokenKind,
+    separator: ShallowTokenKind,
     open: ShallowTokenKind,
     close: ShallowTokenKind,
 ) -> Result<FoundExprList, Error> {
@@ -54,6 +54,11 @@ pub fn parse_expr_list(
 
         if current.is_empty() {
             return Err(Error::no_valid_expr(current_start));
+        }
+
+        if d != 0 && tokens.get_token_kind(closing_index - d, separator).is_err() {
+            d += 1;
+            continue;
         }
 
         match parse_expr(current) {

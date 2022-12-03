@@ -1,4 +1,5 @@
 
+use std::collections::HashMap;
 use std::fmt::{Display};
 
 
@@ -59,6 +60,7 @@ define_value_types! {
     String(String),
     Bool(bool),
     Array(HeapItem<Vec<Value>>),
+    Object(HeapItem<HashMap<String, Value>>),
     Fn(Fn),
     Null
 }

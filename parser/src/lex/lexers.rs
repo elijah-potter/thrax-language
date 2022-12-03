@@ -75,7 +75,7 @@ pub fn lex_number(source: &[char]) -> Option<FoundToken> {
 }
 
 fn is_ident_terminator(c: char) -> bool {
-    c.is_whitespace() || c == '(' || c == ')' || c == '{' || c == '}' || c == ',' || c == ';'
+    c.is_whitespace() || c == '(' || c == ')' || c == '{' || c == '}' || c == ',' || c == ';' || c == ':'
 }
 
 fn lex_ident(source: &[char]) -> Option<FoundToken> {
@@ -155,6 +155,7 @@ lex_chars_to! {
     "=" => Equals,
     ">" => GreaterThan,
     "<" => LessThan,
+    ":" => Colon,
     ";" => Semicolon,
     "+" => Plus,
     "-" => Minus,
