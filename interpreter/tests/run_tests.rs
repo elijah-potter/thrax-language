@@ -1,6 +1,5 @@
 use interpreter::{Context, Returnable};
 
-
 macro_rules! create_test {
     ($filename:ident, $e:pat) => {
        paste::paste! {

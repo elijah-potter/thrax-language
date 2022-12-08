@@ -20,7 +20,7 @@ pub fn add_stdlib(context: &mut Context) {
                 return Err(Error::TypeError(ShallowValue::Array, first.as_shallow()));
             };
 
-        let owned_arr = context.get_array_mut(arr_id);
+        let owned_arr = context.arrays.get_mut(arr_id);
 
         for arg in args_iter {
             owned_arr.push(arg.clone())
@@ -41,7 +41,7 @@ pub fn value_to_string(context: &Context, value: &Value) -> String {
             let mut s = String::new();
             s.push('[');
 
-            let arr = context.get_array(arr_id);
+            let arr = context.arrays.get(arr_id);
 
             if arr.len() > 1 {
                 for item in arr.iter().take(arr.len() - 1) {
@@ -57,15 +57,15 @@ pub fn value_to_string(context: &Context, value: &Value) -> String {
             s.push(']');
 
             s
-        },
+        }
         Value::Object(obj_id) => {
             let mut s = String::new();
 
             s.push('{');
 
-            let obj = context.get_object(obj_id);
+            let obj = context.objects.get(obj_id);
 
-            for (key, value) in obj.iter(){
+            for (key, value) in obj.iter() {
                 s.push_str(key);
 
                 s.push_str(": ");

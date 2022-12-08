@@ -1,16 +1,18 @@
-use std::{collections::{HashMap, HashSet}, alloc::{alloc, Layout, dealloc}, ptr::write};
+use std::alloc::{alloc, dealloc, Layout};
+use std::collections::{HashMap, HashSet};
+use std::ptr::write;
 
 pub type HeapItem<T> = *mut T;
 
 #[derive(Debug, Clone)]
 pub struct Heap<T> {
-    allocated: Vec<*mut T>
+    allocated: Vec<*mut T>,
 }
 
 impl<T> Heap<T> {
     pub fn new() -> Self {
-        Self{
-            allocated: Vec::new()
+        Self {
+            allocated: Vec::new(),
         }
     }
 
@@ -24,14 +26,14 @@ impl<T> Heap<T> {
     }
 
     pub fn filter_keys(&mut self, to_keep: &[HeapItem<T>]) {
-        self.allocated.retain(|a|{
-            if !to_keep.contains(a){
-                unsafe{
+        self.allocated.retain(|a| {
+            if !to_keep.contains(a) {
+                unsafe {
                     a.drop_in_place();
                     dealloc(a.cast::<u8>(), Layout::new::<T>());
                     false
                 }
-            }else{
+            } else {
                 true
             }
         });
@@ -39,9 +41,7 @@ impl<T> Heap<T> {
 
     pub fn get_mut<'a>(&'a mut self, key: &HeapItem<T>) -> &'a mut T {
         if self.allocated.contains(&key) {
-            unsafe{
-                &mut **key
-            }
+            unsafe { &mut **key }
         } else {
             panic!("HEAP DOES NOT CONTAIN POINTER")
         }
@@ -49,9 +49,7 @@ impl<T> Heap<T> {
 
     pub fn get<'a>(&'a self, key: &HeapItem<T>) -> &'a T {
         if self.allocated.contains(&key) {
-            unsafe{
-                &mut **key
-            }
+            unsafe { &mut **key }
         } else {
             panic!("HEAP DOES NOT CONTAIN POINTER")
         }

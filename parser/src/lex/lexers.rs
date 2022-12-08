@@ -62,20 +62,29 @@ pub fn lex_number(source: &[char]) -> Option<FoundToken> {
         return None;
     }
 
-    let s: String = source.iter().collect();
+    {
+        let s: String = source.iter().collect();
 
-    if let Ok(n) = s.parse::<f64>() {
-        return Some(FoundToken {
-            token: TokenKind::Number(n),
-            next_index: source.len(),
-        });
+        if let Ok(n) = s.parse::<f64>() {
+            return Some(FoundToken {
+                token: TokenKind::Number(n),
+                next_index: source.len(),
+            });
+        }
     }
 
     lex_number(&source[0..source.len() - 1])
 }
 
 fn is_ident_terminator(c: char) -> bool {
-    c.is_whitespace() || c == '(' || c == ')' || c == '{' || c == '}' || c == ',' || c == ';' || c == ':'
+    c.is_whitespace()
+        || c == '('
+        || c == ')'
+        || c == '{'
+        || c == '}'
+        || c == ','
+        || c == ';'
+        || c == ':'
 }
 
 fn lex_ident(source: &[char]) -> Option<FoundToken> {

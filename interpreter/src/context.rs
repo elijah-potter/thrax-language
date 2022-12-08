@@ -1,10 +1,11 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
-use ast::{BinaryOp, Expr, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
+use ast::{BinaryOp, Expr, FnCall, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
 
 use crate::error::Error;
 use crate::heap::{Heap, HeapItem};
-use crate::stack::{FoundIdent, Stack};
+use crate::stack::{FoundIdent, FoundIdentMut, Stack};
 use crate::stdlib::add_stdlib;
 use crate::value::{Fn, ShallowValue, Value};
 
@@ -17,17 +18,20 @@ pub enum Returnable {
 #[derive(Clone)]
 pub struct Context {
     stack: Stack,
-    arrays: Heap<Vec<Value>>,
-    objects: Heap<HashMap<String, Value>>,
+    pub(crate) arrays: Heap<Vec<Value>>,
+    pub(crate) objects: Heap<HashMap<String, Value>>,
+    pub(crate) fns: Heap<Rc<Fn>>,
     use_gc: bool,
 }
 
 impl Context {
-    #[must_use] pub fn new(use_gc: bool) -> Self {
+    #[must_use]
+    pub fn new(use_gc: bool) -> Self {
         Self {
             stack: Stack::new(),
             arrays: Heap::new(),
             objects: Heap::new(),
+            fns: Heap::new(),
             use_gc,
         }
     }
@@ -37,8 +41,10 @@ impl Context {
         name: String,
         native_fn: fn(&mut Self, &[Value]) -> Result<Value, Error>,
     ) {
-        self.stack
-            .push_value(name, Value::Fn(Fn::Native(native_fn)));
+        self.stack.push_value(
+            name,
+            Value::Fn(self.fns.push(Rc::new(Fn::Native(native_fn)))),
+        );
     }
 
     /// Courtesey wrapper for [`crate::stdlib::add_stdlib`]
@@ -95,7 +101,7 @@ impl Context {
     fn eval_var_assign(&mut self, var_assign: &VarAssign) -> Result<(), Error> {
         let new_value = self.eval_expr(&var_assign.value)?;
 
-        let Ok(FoundIdent { value, .. }) = self.find_with_ident(&var_assign.ident) else{
+        let Ok(FoundIdentMut { value, .. }) = self.find_with_ident_mut(&var_assign.ident) else{
             return Err(Error::Undeclared(var_assign.ident.clone()));
         };
 
@@ -111,10 +117,10 @@ impl Context {
 
         self.stack.push_value(
             fn_decl.ident.clone(),
-            Value::Fn(Fn::Interpreted {
+            Value::Fn(self.fns.push(Rc::new(Fn::Interpreted {
                 prop_idents: fn_decl.prop_idents.clone(),
                 body: fn_decl.body.clone(),
-            }),
+            }))),
         );
 
         Ok(())
@@ -164,122 +170,120 @@ impl Context {
             Expr::NumberLiteral(n) => Ok(Value::Number(*n)),
             Expr::StringLiteral(s) => Ok(Value::String(s.clone())),
             Expr::BoolLiteral(b) => Ok(Value::Bool(*b)),
-            Expr::ArrayLiteral(arr) => {
-                if self.use_gc {
-                    self.collect_garbage();
+            Expr::ArrayLiteral(arr) => self.eval_array_lit(arr),
+            Expr::ObjectLiteral(obj) => self.eval_object_lit(obj),
+            Expr::BinaryOp(bin_op) => self.eval_binary_op(bin_op),
+            Expr::FnCall(f) => self.run_fn(f),
+        }
+    }
+
+    fn eval_array_lit(&mut self, arr: &[Expr]) -> Result<Value, Error> {
+        if self.use_gc {
+            self.collect_garbage();
+        }
+
+        let mut results = Vec::with_capacity(arr.len());
+        for expr in arr.iter() {
+            let result = self.eval_expr(expr)?;
+            results.push(result);
+        }
+        Ok(Value::Array(self.arrays.push(results)))
+    }
+
+    fn eval_object_lit(&mut self, obj: &HashMap<String, Expr>) -> Result<Value, Error> {
+        if self.use_gc {
+            self.collect_garbage();
+        }
+
+        let mut results = HashMap::with_capacity(obj.len());
+
+        for (key, expr) in obj {
+            let result = self.eval_expr(expr)?;
+            results.insert(key.to_string(), result);
+        }
+
+        Ok(Value::Object(self.objects.push(results)))
+    }
+
+    fn eval_binary_op(&mut self, bin_op: &BinaryOp) -> Result<Value, Error> {
+        let BinaryOp { kind, a, b } = bin_op;
+
+        let c_a = self.eval_expr(a)?;
+        let c_b = self.eval_expr(b)?;
+
+        match kind {
+            ast::BinaryOpKind::Add => c_a.add(&c_b),
+            ast::BinaryOpKind::Subtract => c_a.subtract(&c_b),
+            ast::BinaryOpKind::Multiply => c_a.multiply(&c_b),
+            ast::BinaryOpKind::Divide => c_a.divide(&c_b),
+            ast::BinaryOpKind::GreaterThan => c_a.greater_than(&c_b),
+            ast::BinaryOpKind::LessThan => c_a.less_than(&c_b),
+            ast::BinaryOpKind::Equals => c_a.equals(&c_b),
+        }
+    }
+
+    pub fn run_fn(&mut self, fn_call: &FnCall) -> Result<Value, Error> {
+        let mut args = Vec::with_capacity(fn_call.args.len());
+
+        for arg in &fn_call.args {
+            let result = self.eval_expr(&arg)?;
+            args.push(result);
+        }
+
+        let (fn_def, definition_index) = {
+            let FoundIdent {
+                value: definition,
+                index: definition_index,
+            } = self.find_with_ident(&fn_call.ident)?;
+
+            let Value::Fn(df) = definition else{
+                        return Err(Error::TypeError(ShallowValue::Fn, definition.as_shallow()));
+                    };
+
+            (self.fns.get(df).clone(), definition_index)
+        };
+
+        match fn_def.as_ref() {
+            Fn::Native(native_fn) => native_fn(self, &args),
+            Fn::Interpreted { prop_idents, body } => {
+                let old = self.stack.pop_until_index(definition_index);
+
+                let mut new_scope = Vec::with_capacity(args.len());
+
+                if args.len() != prop_idents.len() {
+                    return Err(Error::IncorrectArgumentCount(prop_idents.len(), args.len()));
                 }
 
-                let mut results = Vec::with_capacity(arr.len());
-                for expr in arr.iter() {
-                    let result = self.eval_expr(expr)?;
-                    results.push(result);
+                for (ident, value) in prop_idents.iter().zip(args.iter()) {
+                    new_scope.push((ident.clone(), value.clone()));
                 }
-                Ok(Value::Array(self.arrays.push(results)))
-            },
-            Expr::ObjectLiteral(obj) => {
-                if self.use_gc {
-                    self.collect_garbage();
-                }
+                self.stack.push_frame(new_scope);
 
-                let mut results = HashMap::with_capacity(obj.len());
+                let res = self.eval_program(&body)?;
 
-                for (key, expr) in obj{
-                    let result = self.eval_expr(expr)?;
-                    results.insert(key.to_string(), result);
+                self.stack.pop_frame();
+                // Replace old scopes
+                self.stack.push_popped_stack(old);
+
+                if let Returnable::Returned(r) = res {
+                    return Ok(r.unwrap_or(Value::Null));
                 }
 
-                Ok(Value::Object(self.objects.push(results)))
-            }
-            Expr::BinaryOp(BinaryOp { kind, a, b }) => {
-                let c_a = self.eval_expr(a)?;
-                let c_b = self.eval_expr(b)?;
-
-                match kind {
-                    ast::BinaryOpKind::Add => c_a.add(&c_b),
-                    ast::BinaryOpKind::Subtract => c_a.subtract(&c_b),
-                    ast::BinaryOpKind::Multiply => c_a.multiply(&c_b),
-                    ast::BinaryOpKind::Divide => c_a.divide(&c_b),
-                    ast::BinaryOpKind::GreaterThan => c_a.greater_than(&c_b),
-                    ast::BinaryOpKind::LessThan => c_a.less_than(&c_b),
-                    ast::BinaryOpKind::Equals => c_a.equals(&c_b),
-                }
-            }
-            Expr::FnCall(f) => {
-                let mut args = Vec::with_capacity(f.args.len());
-
-                for arg in &f.args {
-                    let result = self.eval_expr(arg)?;
-                    args.push(result);
-                }
-
-                // There's got to be a way around this clone
-                let FoundIdent {
-                    value: definition,
-                    index: definition_index,
-                } = self.find_with_ident(&f.ident)?;
-
-                let Value::Fn(df) = definition.clone() else{
-                    return Err(Error::TypeError(ShallowValue::Fn, definition.as_shallow()));
-                };
-
-                match df {
-                    Fn::Native(native_fn) => native_fn(self, &args),
-                    Fn::Interpreted { prop_idents, body } => {
-                        let old = self.stack.pop_until_index(definition_index);
-
-                        let mut new_scope = Vec::with_capacity(args.len());
-
-                        if args.len() != prop_idents.len() {
-                            return Err(Error::IncorrectArgumentCount(
-                                prop_idents.len(),
-                                args.len(),
-                            ));
-                        }
-
-                        for (ident, value) in prop_idents.iter().zip(args.iter()) {
-                            new_scope.push((ident.clone(), value.clone()));
-                        }
-                        self.stack.push_frame(new_scope);
-
-                        let res = self.eval_program(&body)?;
-
-                        self.stack.pop_frame();
-                        // Replace old scopes
-                        self.stack.push_popped_stack(old);
-
-                        if let Returnable::Returned(r) = res {
-                            return Ok(r.unwrap_or(Value::Null));
-                        }
-
-                        Ok(Value::Null)
-                    }
-                }
+                Ok(Value::Null)
             }
         }
     }
 
-    pub fn find_with_ident<'a>(&'a mut self, ident: &str) -> Result<FoundIdent<'a>, Error> {
+    pub fn find_with_ident_mut<'a>(&'a mut self, ident: &str) -> Result<FoundIdentMut<'a>, Error> {
         self.stack
-            .find_with_ident(ident)
+            .find_with_ident_mut(ident)
             .ok_or(Error::Undeclared(ident.to_string()))
     }
 
-    pub fn get_array_mut<'a>(&'a mut self, key: &HeapItem<Vec<Value>>) -> &'a mut Vec<Value> {
-        self.arrays
-            .get_mut(key)
-    }
-
-    pub fn get_array<'a>(&'a self, key: &HeapItem<Vec<Value>>) -> &'a Vec<Value> {
-        self.arrays.get(key)
-    }
-
-    pub fn get_object_mut<'a>(&'a mut self, key: &HeapItem<HashMap<String, Value>>) -> &'a mut HashMap<String, Value> {
-        self.objects
-            .get_mut(key)
-    }
-
-    pub fn get_object<'a>(&'a self, key: &HeapItem<HashMap<String, Value>>) -> &'a HashMap<String, Value> {
-        self.objects.get(key)
+    pub fn find_with_ident<'a>(&'a self, ident: &str) -> Result<FoundIdent<'a>, Error> {
+        self.stack
+            .find_with_ident(ident)
+            .ok_or(Error::Undeclared(ident.to_string()))
     }
 
     pub fn collect_garbage(&mut self) {
@@ -301,7 +305,7 @@ impl Context {
                 continue;
             }
 
-            let arr = self.get_array(&arr_id);
+            let arr = self.arrays.get(&arr_id);
 
             visited.insert(arr_id);
 

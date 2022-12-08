@@ -14,7 +14,7 @@ pub fn parse_expr(tokens: &[Token]) -> Result<Expr, Error> {
         parse_fn_call,
         parse_single_token,
         parse_array_literal,
-        parse_object_literal
+        parse_object_literal,
     ];
 
     let mut last_failure = None;
@@ -117,7 +117,7 @@ fn parse_array_literal(tokens: &[Token]) -> Result<Expr, Error> {
         ShallowTokenKind::RightBracket,
     )?;
 
-    if found_list.next_index != tokens.len(){
+    if found_list.next_index != tokens.len() {
         return Err(Error::failed_to_consume(found_list.next_index));
     }
 

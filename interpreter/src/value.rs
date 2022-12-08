@@ -1,14 +1,12 @@
-
 use std::collections::HashMap;
-use std::fmt::{Display};
-
+use std::fmt::Display;
+use std::rc::Rc;
 
 use ast::{BinaryOpKind, Stmt};
 
-
 use crate::error::Error;
-use crate::Context;
 use crate::heap::HeapItem;
+use crate::Context;
 
 /// [Value] is a dynamically typed nullable value.
 ///
@@ -61,7 +59,7 @@ define_value_types! {
     Bool(bool),
     Array(HeapItem<Vec<Value>>),
     Object(HeapItem<HashMap<String, Value>>),
-    Fn(Fn),
+    Fn(HeapItem<Rc<Fn>>),
     Null
 }
 
@@ -69,6 +67,7 @@ define_value_types! {
 pub enum Fn {
     Native(fn(&mut Context, &[Value]) -> Result<Value, Error>),
     /// This is only expressly different from `ast::FnDecl` in that it does not include an ident.
+    /// TODO: Store stack frame alongside function
     Interpreted {
         prop_idents: Vec<String>,
         body: Vec<Stmt>,

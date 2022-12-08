@@ -10,7 +10,7 @@ let results = [];
 
 let i = 0;
 
-while (i < 10){
+while (i < 20){
   push(results, fib(i));
   i = i + 1;
 }

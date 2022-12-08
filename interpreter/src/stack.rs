@@ -1,9 +1,12 @@
-
-
 use crate::Value;
 
-pub struct FoundIdent<'a> {
+pub struct FoundIdentMut<'a> {
     pub value: &'a mut Value,
+    pub index: usize,
+}
+
+pub struct FoundIdent<'a> {
+    pub value: &'a Value,
     pub index: usize,
 }
 
@@ -81,13 +84,24 @@ impl Stack {
         self.frames.append(&mut frames);
     }
 
-    pub fn find_with_ident<'a>(&'a mut self, ident: &str) -> Option<FoundIdent<'a>> {
+    pub fn find_with_ident_mut<'a>(&'a mut self, ident: &str) -> Option<FoundIdentMut<'a>> {
         let (index, value) = self
             .values
             .iter_mut()
             .enumerate()
             .rev()
             .find_map(|(index, s)| s.0.eq(ident).then_some((index, &mut s.1)))?;
+
+        Some(FoundIdentMut { value, index })
+    }
+
+    pub fn find_with_ident<'a>(&'a self, ident: &str) -> Option<FoundIdent<'a>> {
+        let (index, value) = self
+            .values
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(index, s)| s.0.eq(ident).then_some((index, &s.1)))?;
 
         Some(FoundIdent { value, index })
     }
