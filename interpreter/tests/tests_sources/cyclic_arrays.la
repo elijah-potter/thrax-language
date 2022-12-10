@@ -1,6 +1,6 @@
 let k = 0;
 
-while (k < 100){
+while (k < 10){
   let test_arr = [];
   let test_arr_2 = [];
 

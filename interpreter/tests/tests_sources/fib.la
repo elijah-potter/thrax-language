@@ -9,10 +9,13 @@ fn fib(n) {
 let results = [];
 
 let i = 0;
+let up_to = 32;
 
-while (i < 20){
-  push(results, fib(i));
-  i = i + 1;
+while (i < up_to){
+  let c = fib(i);
+  push(results, c);
+  println(i, "/", up_to, " ", c);
+  i += 1;
 }
 
 push(results, fib(i));

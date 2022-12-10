@@ -1,4 +1,4 @@
-use ast::{FnDecl, FnReturn, Stmt, VarAssign, VarDecl};
+use ast::{BinaryOp, BinaryOpKind, Expr, FnDecl, FnReturn, Stmt, VarAssign, VarDecl};
 
 use super::common_parsers::{parse_prop_ident_list, FoundPropIdentList};
 use super::expr_parsers::parse_expr;
@@ -73,17 +73,39 @@ fn parse_var_decl(tokens: &[Token]) -> Result<FoundStmt, Error> {
 }
 
 fn parse_var_assign(tokens: &[Token]) -> Result<FoundStmt, Error> {
-    let identifier = tokens.get_token_kind(0, ShallowTokenKind::Ident)?;
+    let identifier = tokens
+        .get_token_kind(0, ShallowTokenKind::Ident)?
+        .clone()
+        .ident()
+        .unwrap();
 
-    tokens.get_token_kind(1, ShallowTokenKind::Equals)?;
+    let op = tokens
+        .get(1)
+        .ok_or(Error::expected_assignment_operator(1, None))?;
 
     let semi_location = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
 
-    let expr = parse_expr(&tokens[2..semi_location]).map_err(|err| err.relative_to(3))?;
+    let compute_right = || parse_expr(&tokens[2..semi_location]).map_err(|err| err.relative_to(3));
+    let compute_expr = |op_kind: BinaryOpKind| -> Result<Expr, Error> {
+        Ok(Expr::BinaryOp(BinaryOp {
+            kind: op_kind,
+            a: Box::new(Expr::Ident(identifier.clone())),
+            b: Box::new(compute_right()?),
+        }))
+    };
+
+    let expr = match op.kind {
+        crate::TokenKind::Equals => compute_right()?,
+        crate::TokenKind::AddEquals => compute_expr(BinaryOpKind::Add)?,
+        crate::TokenKind::SubtractEquals => compute_expr(BinaryOpKind::Subtract)?,
+        crate::TokenKind::MultiplyEquals => compute_expr(BinaryOpKind::Multiply)?,
+        crate::TokenKind::DivideEquals => compute_expr(BinaryOpKind::Divide)?,
+        _ => return Err(Error::expected_assignment_operator(1, Some(op.clone()))),
+    };
 
     Ok(FoundStmt {
         stmt: Stmt::VarAssign(VarAssign {
-            ident: identifier.clone().ident().unwrap(),
+            ident: identifier,
             value: expr,
         }),
         next_index: semi_location + 1,

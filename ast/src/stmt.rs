@@ -1,6 +1,6 @@
 use is_macro::Is;
 
-use crate::Expr;
+use crate::{BinaryOpKind, Expr};
 
 #[derive(Debug, Is, Clone)]
 pub enum Stmt {

@@ -20,7 +20,6 @@ pub struct Context {
     stack: Stack,
     pub(crate) arrays: Heap<Vec<Value>>,
     pub(crate) objects: Heap<HashMap<String, Value>>,
-    pub(crate) fns: Heap<Rc<Fn>>,
     use_gc: bool,
 }
 
@@ -31,7 +30,6 @@ impl Context {
             stack: Stack::new(),
             arrays: Heap::new(),
             objects: Heap::new(),
-            fns: Heap::new(),
             use_gc,
         }
     }
@@ -41,10 +39,8 @@ impl Context {
         name: String,
         native_fn: fn(&mut Self, &[Value]) -> Result<Value, Error>,
     ) {
-        self.stack.push_value(
-            name,
-            Value::Fn(self.fns.push(Rc::new(Fn::Native(native_fn)))),
-        );
+        self.stack
+            .push_value(name, Value::Fn((Rc::new(Fn::Native(native_fn)))));
     }
 
     /// Courtesey wrapper for [`crate::stdlib::add_stdlib`]
@@ -117,10 +113,10 @@ impl Context {
 
         self.stack.push_value(
             fn_decl.ident.clone(),
-            Value::Fn(self.fns.push(Rc::new(Fn::Interpreted {
+            Value::Fn(Rc::new(Fn::Interpreted {
                 prop_idents: fn_decl.prop_idents.clone(),
                 body: fn_decl.body.clone(),
-            }))),
+            })),
         );
 
         Ok(())
@@ -240,7 +236,7 @@ impl Context {
                         return Err(Error::TypeError(ShallowValue::Fn, definition.as_shallow()));
                     };
 
-            (self.fns.get(df).clone(), definition_index)
+            (df.clone(), definition_index)
         };
 
         match fn_def.as_ref() {

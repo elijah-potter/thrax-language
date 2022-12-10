@@ -59,7 +59,7 @@ define_value_types! {
     Bool(bool),
     Array(HeapItem<Vec<Value>>),
     Object(HeapItem<HashMap<String, Value>>),
-    Fn(HeapItem<Rc<Fn>>),
+    Fn(Rc<Fn>),
     Null
 }
 

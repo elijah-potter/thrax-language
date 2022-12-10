@@ -28,6 +28,9 @@ pub enum ErrorKind {
     ExpectedBinaryOperator {
         received: Option<Token>,
     },
+    ExpectedAssignmentOperator {
+        received: Option<Token>,
+    },
     ExpectedLiteral {
         received: Option<Token>,
     },
@@ -38,13 +41,11 @@ pub enum ErrorKind {
 
 impl Error {
     /// Adjusts [`Self::index`] by an index.
-    #[must_use]
     pub fn relative_to(mut self, by: usize) -> Self {
         self.index += by;
         self
     }
 
-    #[must_use]
     pub fn expected_token(
         at_index: usize,
         expected: ShallowTokenKind,
@@ -56,7 +57,6 @@ impl Error {
         }
     }
 
-    #[must_use]
     pub fn expected_binary_operator(at_index: usize, received: Option<Token>) -> Self {
         Self {
             index: at_index,
@@ -64,7 +64,13 @@ impl Error {
         }
     }
 
-    #[must_use]
+    pub fn expected_assignment_operator(at_index: usize, received: Option<Token>) -> Self {
+        Self {
+            index: at_index,
+            kind: ErrorKind::ExpectedAssignmentOperator { received },
+        }
+    }
+
     pub fn expected_literal(at_index: usize, received: Option<Token>) -> Self {
         Self {
             index: at_index,
@@ -72,7 +78,6 @@ impl Error {
         }
     }
 
-    #[must_use]
     pub fn failed_to_consume(at_index: usize) -> Self {
         Self {
             index: at_index,
@@ -80,7 +85,6 @@ impl Error {
         }
     }
 
-    #[must_use]
     pub fn no_valid_expr(at_index: usize) -> Self {
         Self {
             index: at_index,
@@ -88,7 +92,6 @@ impl Error {
         }
     }
 
-    #[must_use]
     pub fn no_tokens_provided() -> Self {
         Self {
             index: 0,
