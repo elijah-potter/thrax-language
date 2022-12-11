@@ -137,3 +137,9 @@ impl Value {
         String => |a:&str, b:&str| Value::Bool(a.eq(b))
     );
 }
+
+impl From<String> for Value {
+    fn from(v: String) -> Self {
+        Self::String(v)
+    }
+}

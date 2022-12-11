@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ast::{BinaryOp, Expr, FnCall};
+use ast::{BinaryOp, Expr, FnCall, Member};
 
 use super::common_parsers::parse_expr_list;
 use super::tokens_ext::{LocatedBinaryOp, TokensExt};
@@ -12,6 +12,7 @@ pub fn parse_expr(tokens: &[Token]) -> Result<Expr, Error> {
     let parsers = [
         parse_binary_op,
         parse_fn_call,
+        parse_member,
         parse_single_token,
         parse_array_literal,
         parse_object_literal,
@@ -106,6 +107,29 @@ fn parse_fn_call(tokens: &[Token]) -> Result<Expr, Error> {
     Ok(Expr::FnCall(FnCall {
         ident: identifier.clone().ident().unwrap(),
         args: found_list.iter_exprs().collect(),
+    }))
+}
+
+fn parse_member(tokens: &[Token]) -> Result<Expr, Error> {
+    let open = tokens.locate_first(1, ShallowTokenKind::LeftBracket)?;
+    let close = &tokens[open..]
+        .locate_last_matched_right(
+            ShallowTokenKind::LeftBracket,
+            ShallowTokenKind::RightBracket,
+        )
+        .map_err(|err| err.relative_to(open))?
+        + open;
+
+    if close < tokens.len() - 1 {
+        return Err(Error::failed_to_consume(close));
+    }
+
+    let child = parse_expr(&tokens[open + 1..close]).map_err(|err| err.relative_to(open + 1))?;
+    let parent = parse_expr(&tokens[0..open])?;
+
+    Ok(Expr::Member(Member {
+        parent: Box::new(parent),
+        child: Box::new(child),
     }))
 }
 

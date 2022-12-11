@@ -12,6 +12,7 @@ pub enum Expr {
     ObjectLiteral(HashMap<String, Expr>),
     BinaryOp(BinaryOp),
     FnCall(FnCall),
+    Member(Member),
 }
 
 #[derive(Debug, Clone)]
@@ -36,4 +37,10 @@ pub enum BinaryOpKind {
 pub struct FnCall {
     pub ident: String,
     pub args: Vec<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Member {
+    pub parent: Box<Expr>,
+    pub child: Box<Expr>,
 }

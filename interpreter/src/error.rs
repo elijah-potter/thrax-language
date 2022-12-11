@@ -19,8 +19,17 @@ pub enum Error {
     UndefinedStackAccess(String),
     #[error("Attempted to access non-existant heap item {0}.")]
     UndefinedHeapAccess(usize),
+    /// Represent that function is being supplied too many arguments.
     /// 0 => # of args requested
     /// 1 => # of args supplied
     #[error("Function requires {1} arguments, but was supplied {0}")]
     IncorrectArgumentCount(usize, usize),
+    #[error("Expected integer value, got {0}")]
+    ExpectedInteger(f64),
+    #[error("Requested string or integer index {0} is out of bounds.")]
+    IndexOutOfBounds(usize),
+    #[error("Requested key {0} in object does not exist in object.")]
+    ObjectMissingKey(String),
+    #[error("Requestion type {0} cannot be indexed.")]
+    CannotIndexType(ShallowValue),
 }

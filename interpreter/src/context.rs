@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
-use ast::{BinaryOp, Expr, FnCall, FnDecl, Program, Stmt, VarAssign, VarDecl, WhileLoop};
+use ast::{BinaryOp, Expr, FnCall, FnDecl, Member, Program, Stmt, VarAssign, VarDecl, WhileLoop};
 
 use crate::error::Error;
 use crate::heap::{Heap, HeapItem};
@@ -170,6 +170,57 @@ impl Context {
             Expr::ObjectLiteral(obj) => self.eval_object_lit(obj),
             Expr::BinaryOp(bin_op) => self.eval_binary_op(bin_op),
             Expr::FnCall(f) => self.run_fn(f),
+            Expr::Member(m) => self.eval_member(m),
+        }
+    }
+
+    fn eval_member(&mut self, member: &Member) -> Result<Value, Error> {
+        let parent = self.eval_expr(&member.parent)?;
+        let child = self.eval_expr(&member.child)?;
+
+        match parent {
+            Value::String(s) => {
+                if let Value::Number(index) = child {
+                    let rounded = index.floor();
+                    if rounded == index {
+                        s.chars()
+                            .nth(rounded as usize)
+                            .ok_or(Error::IndexOutOfBounds(rounded as usize))
+                            .map(|c| c.to_string().into()) // TODO: Once we add chars, remove this last bit
+                    } else {
+                        return Err(Error::ExpectedInteger(index));
+                    }
+                } else {
+                    return Err(Error::TypeError(ShallowValue::Number, child.as_shallow()));
+                }
+            }
+            Value::Array(arr_id) => {
+                if let Value::Number(index) = child {
+                    let arr = self.arrays.get(&arr_id);
+                    let rounded = index.floor();
+
+                    if rounded == index {
+                        arr.get(rounded as usize)
+                            .ok_or(Error::IndexOutOfBounds(rounded as usize))
+                            .cloned() // TODO: How can we do this by reference?
+                    } else {
+                        return Err(Error::ExpectedInteger(index));
+                    }
+                } else {
+                    return Err(Error::TypeError(ShallowValue::Number, child.as_shallow()));
+                }
+            }
+            Value::Object(obj_id) => {
+                if let Value::String(index) = child {
+                    let obj = self.objects.get(&obj_id);
+                    obj.get(&index)
+                        .ok_or(Error::ObjectMissingKey(index))
+                        .cloned() // TODO: How can we do this by reference?
+                } else {
+                    return Err(Error::TypeError(ShallowValue::Number, child.as_shallow()));
+                }
+            }
+            _ => Err(Error::CannotIndexType(parent.as_shallow())),
         }
     }
 
