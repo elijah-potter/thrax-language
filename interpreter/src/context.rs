@@ -4,7 +4,7 @@ use std::rc::Rc;
 use ast::{BinaryOp, Expr, FnCall, FnDecl, Member, Program, Stmt, VarAssign, VarDecl, WhileLoop};
 
 use crate::error::Error;
-use crate::heap::{Heap, HeapItem};
+use crate::heap::Heap;
 use crate::stack::{FoundIdent, FoundIdentMut, Stack};
 use crate::stdlib::add_stdlib;
 use crate::value::{Fn, ShallowValue, Value};
@@ -40,7 +40,7 @@ impl Context {
         native_fn: fn(&mut Self, &[Value]) -> Result<Value, Error>,
     ) {
         self.stack
-            .push_value(name, Value::Fn((Rc::new(Fn::Native(native_fn)))));
+            .push_value(name, Value::Fn(Rc::new(Fn::Native(native_fn))));
     }
 
     /// Courtesey wrapper for [`crate::stdlib::add_stdlib`]
@@ -188,10 +188,10 @@ impl Context {
                             .ok_or(Error::IndexOutOfBounds(rounded as usize))
                             .map(|c| c.to_string().into()) // TODO: Once we add chars, remove this last bit
                     } else {
-                        return Err(Error::ExpectedInteger(index));
+                        Err(Error::ExpectedInteger(index))
                     }
                 } else {
-                    return Err(Error::TypeError(ShallowValue::Number, child.as_shallow()));
+                    Err(Error::TypeError(ShallowValue::Number, child.as_shallow()))
                 }
             }
             Value::Array(arr_id) => {
@@ -204,10 +204,10 @@ impl Context {
                             .ok_or(Error::IndexOutOfBounds(rounded as usize))
                             .cloned() // TODO: How can we do this by reference?
                     } else {
-                        return Err(Error::ExpectedInteger(index));
+                        Err(Error::ExpectedInteger(index))
                     }
                 } else {
-                    return Err(Error::TypeError(ShallowValue::Number, child.as_shallow()));
+                    Err(Error::TypeError(ShallowValue::Number, child.as_shallow()))
                 }
             }
             Value::Object(obj_id) => {
@@ -217,7 +217,7 @@ impl Context {
                         .ok_or(Error::ObjectMissingKey(index))
                         .cloned() // TODO: How can we do this by reference?
                 } else {
-                    return Err(Error::TypeError(ShallowValue::Number, child.as_shallow()));
+                    Err(Error::TypeError(ShallowValue::Number, child.as_shallow()))
                 }
             }
             _ => Err(Error::CannotIndexType(parent.as_shallow())),
@@ -273,7 +273,7 @@ impl Context {
         let mut args = Vec::with_capacity(fn_call.args.len());
 
         for arg in &fn_call.args {
-            let result = self.eval_expr(&arg)?;
+            let result = self.eval_expr(arg)?;
             args.push(result);
         }
 
@@ -306,7 +306,7 @@ impl Context {
                 }
                 self.stack.push_frame(new_scope);
 
-                let res = self.eval_program(&body)?;
+                let res = self.eval_program(body)?;
 
                 self.stack.pop_frame();
                 // Replace old scopes
@@ -324,24 +324,21 @@ impl Context {
     pub fn find_with_ident_mut<'a>(&'a mut self, ident: &str) -> Result<FoundIdentMut<'a>, Error> {
         self.stack
             .find_with_ident_mut(ident)
-            .ok_or(Error::Undeclared(ident.to_string()))
+            .ok_or_else(|| Error::Undeclared(ident.to_string()))
     }
 
     pub fn find_with_ident<'a>(&'a self, ident: &str) -> Result<FoundIdent<'a>, Error> {
         self.stack
             .find_with_ident(ident)
-            .ok_or(Error::Undeclared(ident.to_string()))
+            .ok_or_else(|| Error::Undeclared(ident.to_string()))
     }
 
     pub fn collect_garbage(&mut self) {
         let mut to_search = Vec::new();
 
         for item in self.stack.iter_values() {
-            match item {
-                Value::Array(arr_id) => {
-                    to_search.push(*arr_id);
-                }
-                _ => (),
+            if let Value::Array(arr_id) = item {
+                to_search.push(*arr_id);
             }
         }
 
@@ -357,11 +354,8 @@ impl Context {
             visited.insert(arr_id);
 
             for item in arr {
-                match item {
-                    Value::Array(arr_id) => {
-                        to_search.push(*arr_id);
-                    }
-                    _ => (),
+                if let Value::Array(arr_id) = item {
+                    to_search.push(*arr_id);
                 }
             }
         }
@@ -372,11 +366,13 @@ impl Context {
     }
 
     /// Get the number of [Value]'s in the stack
+    #[must_use]
     pub fn stack_size(&self) -> usize {
         self.stack.value_len()
     }
 
     /// Get the number of arrays in the array heap
+    #[must_use]
     pub fn array_heap_size(&self) -> usize {
         self.arrays.len()
     }

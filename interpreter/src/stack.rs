@@ -106,7 +106,7 @@ impl Stack {
         Some(FoundIdent { value, index })
     }
 
-    pub fn iter_values<'a>(&'a self) -> impl Iterator<Item = &'a Value> {
+    pub fn iter_values(&'_ self) -> impl Iterator<Item = &'_ Value> {
         self.values.iter().map(|(_, value)| value)
     }
 }

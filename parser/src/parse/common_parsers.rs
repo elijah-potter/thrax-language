@@ -2,7 +2,7 @@ use ast::Expr;
 
 use super::expr_parsers::parse_expr;
 use super::tokens_ext::TokensExt;
-use super::{Error, ErrorKind};
+use super::Error;
 use crate::lex::{ShallowTokenKind, Token};
 
 #[derive(Debug, Clone)]

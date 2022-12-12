@@ -1,5 +1,3 @@
-#![warn(clippy::pedantic)]
-
 mod lex;
 mod parse;
 

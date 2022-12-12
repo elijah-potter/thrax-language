@@ -10,11 +10,11 @@ pub struct LocatedBinaryOp {
 }
 
 pub trait TokensExt {
-    fn get_token_kind<'a>(
-        &'a self,
+    fn get_token_kind(
+        &'_ self,
         index: usize,
         kind: ShallowTokenKind,
-    ) -> Result<&'a TokenKind, Error>;
+    ) -> Result<&'_ TokenKind, Error>;
     fn locate_first(&self, starting_at: usize, kind: ShallowTokenKind) -> Result<usize, Error>;
     fn get_binary_op(&self, index: usize) -> Result<BinaryOpKind, Error>;
     fn locate_last_matched_right(
@@ -26,14 +26,14 @@ pub trait TokensExt {
 }
 
 impl TokensExt for [Token] {
-    fn get_token_kind<'a>(
-        &'a self,
+    fn get_token_kind(
+        &'_ self,
         index: usize,
         kind: ShallowTokenKind,
-    ) -> Result<&'a TokenKind, Error> {
+    ) -> Result<&'_ TokenKind, Error> {
         let token = self
             .get(index)
-            .ok_or(Error::expected_token(index, kind, None))?;
+            .ok_or_else(|| Error::expected_token(index, kind, None))?;
 
         if token.kind.as_shallow() == kind {
             Ok(&token.kind)
@@ -51,22 +51,18 @@ impl TokensExt for [Token] {
             .enumerate()
             .skip(starting_at)
             .find_map(|(index, token)| (token.kind.as_shallow() == kind).then_some(index))
-            .ok_or(Error::expected_token(
-                self.len() - 1,
-                kind,
-                self.last().cloned(),
-            ))
+            .ok_or_else(|| Error::expected_token(self.len() - 1, kind, self.last().cloned()))
     }
 
     fn get_binary_op(&self, index: usize) -> Result<BinaryOpKind, Error> {
         let token = self
             .get(index)
-            .ok_or(Error::expected_binary_operator(index, None))?;
+            .ok_or_else(|| Error::expected_binary_operator(index, None))?;
 
         token
             .kind
             .as_binary_op()
-            .ok_or(Error::expected_binary_operator(index, Some(token.clone())))
+            .ok_or_else(|| Error::expected_binary_operator(index, Some(token.clone())))
     }
 
     /// Meant for brackets.

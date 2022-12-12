@@ -22,3 +22,4 @@ create_test!(fib, Returnable::Returned(Some(_)));
 create_test!(empty_fn, Returnable::Completed);
 create_test!(add_fns, Returnable::Completed);
 create_test!(cyclic_arrays, Returnable::Completed);
+create_test!(index_object, Returnable::Completed);

@@ -1,0 +1,11 @@
+let k = {
+  t: 23,
+  sdf: "testing",
+  rec: {
+    a: "inner"
+  }
+};
+
+println(k["t"]);
+println(k["sdf"]);
+println(k["rec"]);

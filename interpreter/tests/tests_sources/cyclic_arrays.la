@@ -5,7 +5,7 @@ while (k < 10){
   let test_arr_2 = [];
 
   let i = 0;
-  while (i < 1000){
+  while (i < 10){
     push(test_arr, i);
     push(test_arr, test_arr_2);
     let temp = test_arr;

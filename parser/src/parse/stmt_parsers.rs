@@ -81,7 +81,7 @@ fn parse_var_assign(tokens: &[Token]) -> Result<FoundStmt, Error> {
 
     let op = tokens
         .get(1)
-        .ok_or(Error::expected_assignment_operator(1, None))?;
+        .ok_or_else(|| Error::expected_assignment_operator(1, None))?;
 
     let semi_location = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
 

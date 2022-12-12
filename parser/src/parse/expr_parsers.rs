@@ -33,7 +33,7 @@ pub fn parse_expr(tokens: &[Token]) -> Result<Expr, Error> {
 fn parse_single_token(tokens: &[Token]) -> Result<Expr, Error> {
     let token = tokens
         .get(0)
-        .ok_or(Error::expected_literal(0, None))?
+        .ok_or_else(|| Error::expected_literal(0, None))?
         .clone();
 
     let expr = match token.kind {
@@ -63,13 +63,13 @@ fn parse_binary_op(tokens: &[Token]) -> Result<Expr, Error> {
 
         // a + b
         let a_tokens = &tokens[..location];
-        let Ok(a) = parse_expr(a_tokens) else{
+        let Ok(a) = parse_expr(a_tokens) else {
             scan_start = location + 1;
             continue;
         };
 
         let b_tokens = &tokens[location + 1..];
-        let Ok(b) = parse_expr(b_tokens) else{
+        let Ok(b) = parse_expr(b_tokens) else {
             scan_start = location + 1;
             continue;
         };
@@ -112,7 +112,7 @@ fn parse_fn_call(tokens: &[Token]) -> Result<Expr, Error> {
 
 fn parse_member(tokens: &[Token]) -> Result<Expr, Error> {
     let open = tokens.locate_first(1, ShallowTokenKind::LeftBracket)?;
-    let close = &tokens[open..]
+    let close = tokens[open..]
         .locate_last_matched_right(
             ShallowTokenKind::LeftBracket,
             ShallowTokenKind::RightBracket,

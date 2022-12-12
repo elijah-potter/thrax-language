@@ -1,5 +1,3 @@
-#![warn(clippy::pedantic)]
-
 mod context;
 mod error;
 mod heap;

@@ -1,5 +1,4 @@
 use std::alloc::{alloc, dealloc, Layout};
-use std::collections::{HashMap, HashSet};
 use std::ptr::write;
 
 pub type HeapItem<T> = *mut T;
@@ -40,7 +39,7 @@ impl<T> Heap<T> {
     }
 
     pub fn get_mut<'a>(&'a mut self, key: &HeapItem<T>) -> &'a mut T {
-        if self.allocated.contains(&key) {
+        if self.allocated.contains(key) {
             unsafe { &mut **key }
         } else {
             panic!("HEAP DOES NOT CONTAIN POINTER")
@@ -48,7 +47,7 @@ impl<T> Heap<T> {
     }
 
     pub fn get<'a>(&'a self, key: &HeapItem<T>) -> &'a T {
-        if self.allocated.contains(&key) {
+        if self.allocated.contains(key) {
             unsafe { &mut **key }
         } else {
             panic!("HEAP DOES NOT CONTAIN POINTER")

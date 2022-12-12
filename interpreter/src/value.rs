@@ -11,7 +11,6 @@ use crate::Context;
 /// [Value] is a dynamically typed nullable value.
 ///
 /// A value that _can_ be undefined is expressed as an `Option<Value>`
-
 macro_rules! define_value_types {
     ($inner:ty) => {
         _
