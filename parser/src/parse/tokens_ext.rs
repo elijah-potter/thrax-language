@@ -1,4 +1,4 @@
-use ast::BinaryOpKind;
+use ast::{AssignOpKind, BinaryOpKind};
 
 use crate::lex::{ShallowTokenKind, Token};
 use crate::parse::Error;
@@ -6,6 +6,11 @@ use crate::TokenKind;
 
 pub struct LocatedBinaryOp {
     pub op: BinaryOpKind,
+    pub location: usize,
+}
+
+pub struct LocatedAssignOp {
+    pub op: AssignOpKind,
     pub location: usize,
 }
 
@@ -23,6 +28,7 @@ pub trait TokensExt {
         right: ShallowTokenKind,
     ) -> Result<usize, Error>;
     fn locate_first_binary_op(&self, starting_at: usize) -> Result<LocatedBinaryOp, Error>;
+    fn locate_first_assign_op(&self, starting_at: usize) -> Result<LocatedAssignOp, Error>;
 }
 
 impl TokensExt for [Token] {
@@ -111,6 +117,26 @@ impl TokensExt for [Token] {
         }
 
         Err(Error::expected_binary_operator(
+            self.len() - 1,
+            self.last().cloned(),
+        ))
+    }
+
+    fn locate_first_assign_op(&self, starting_at: usize) -> Result<LocatedAssignOp, Error> {
+        if self.is_empty() {
+            return Err(Error::expected_assignment_operator(0, None));
+        }
+
+        for (index, token) in self.iter().enumerate().skip(starting_at) {
+            if let Some(op) = token.kind.as_assign_op() {
+                return Ok(LocatedAssignOp {
+                    op,
+                    location: index,
+                });
+            }
+        }
+
+        Err(Error::expected_assignment_operator(
             self.len() - 1,
             self.last().cloned(),
         ))

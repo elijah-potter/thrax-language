@@ -33,6 +33,12 @@ pub enum BinaryOpKind {
     Equals,
 }
 
+#[derive(Debug, Is, Clone, Copy)]
+pub enum AssignOpKind {
+    NoOp,
+    Op(BinaryOpKind),
+}
+
 #[derive(Debug, Clone)]
 pub struct FnCall {
     pub ident: String,

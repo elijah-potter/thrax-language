@@ -2,7 +2,7 @@ use ast::{BinaryOp, BinaryOpKind, Expr, FnDecl, FnReturn, Stmt, VarAssign, VarDe
 
 use super::common_parsers::{parse_prop_ident_list, FoundPropIdentList};
 use super::expr_parsers::parse_expr;
-use super::tokens_ext::TokensExt;
+use super::tokens_ext::{LocatedAssignOp, TokensExt};
 use super::Error;
 use crate::lex::{ShallowTokenKind, Token};
 
@@ -73,41 +73,17 @@ fn parse_var_decl(tokens: &[Token]) -> Result<FoundStmt, Error> {
 }
 
 fn parse_var_assign(tokens: &[Token]) -> Result<FoundStmt, Error> {
-    let identifier = tokens
-        .get_token_kind(0, ShallowTokenKind::Ident)?
-        .clone()
-        .ident()
-        .unwrap();
+    let LocatedAssignOp { op, location } = tokens.locate_first_assign_op(1)?;
 
-    let op = tokens
-        .get(1)
-        .ok_or_else(|| Error::expected_assignment_operator(1, None))?;
+    let to = parse_expr(&tokens[0..location])?;
 
     let semi_location = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
 
-    let compute_right = || parse_expr(&tokens[2..semi_location]).map_err(|err| err.relative_to(3));
-    let compute_expr = |op_kind: BinaryOpKind| -> Result<Expr, Error> {
-        Ok(Expr::BinaryOp(BinaryOp {
-            kind: op_kind,
-            a: Box::new(Expr::Ident(identifier.clone())),
-            b: Box::new(compute_right()?),
-        }))
-    };
-
-    let expr = match op.kind {
-        crate::TokenKind::Equals => compute_right()?,
-        crate::TokenKind::AddEquals => compute_expr(BinaryOpKind::Add)?,
-        crate::TokenKind::SubtractEquals => compute_expr(BinaryOpKind::Subtract)?,
-        crate::TokenKind::MultiplyEquals => compute_expr(BinaryOpKind::Multiply)?,
-        crate::TokenKind::DivideEquals => compute_expr(BinaryOpKind::Divide)?,
-        _ => return Err(Error::expected_assignment_operator(1, Some(op.clone()))),
-    };
+    let value = parse_expr(&tokens[location + 1..semi_location])
+        .map_err(|err| err.relative_to(location + 1))?;
 
     Ok(FoundStmt {
-        stmt: Stmt::VarAssign(VarAssign {
-            ident: identifier,
-            value: expr,
-        }),
+        stmt: Stmt::VarAssign(VarAssign { to, value, op }),
         next_index: semi_location + 1,
     })
 }

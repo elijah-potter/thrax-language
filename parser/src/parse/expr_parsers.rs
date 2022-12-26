@@ -112,6 +112,7 @@ fn parse_fn_call(tokens: &[Token]) -> Result<Expr, Error> {
 
 fn parse_member(tokens: &[Token]) -> Result<Expr, Error> {
     let open = tokens.locate_first(1, ShallowTokenKind::LeftBracket)?;
+
     let close = tokens[open..]
         .locate_last_matched_right(
             ShallowTokenKind::LeftBracket,

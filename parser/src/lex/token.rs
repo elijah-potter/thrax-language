@@ -1,4 +1,4 @@
-use ast::BinaryOpKind;
+use ast::{AssignOpKind, BinaryOpKind};
 use is_macro::Is;
 
 #[derive(Debug, Clone, Copy)]
@@ -29,7 +29,7 @@ macro_rules! define_token_types {
         }
 
         impl TokenKind {
-            #[must_use] pub fn as_shallow(&self) -> ShallowTokenKind{
+             pub fn as_shallow(&self) -> ShallowTokenKind{
                 match self{
                     $(
                         Self::$kind$((::paste::paste!{[<_$contains:snake>]}))? => ShallowTokenKind::$kind,
@@ -48,7 +48,6 @@ macro_rules! define_token_types {
 }
 
 impl TokenKind {
-    #[must_use]
     pub fn as_binary_op(&self) -> Option<BinaryOpKind> {
         match self {
             TokenKind::Plus => Some(BinaryOpKind::Add),
@@ -58,6 +57,17 @@ impl TokenKind {
             TokenKind::DoubleEquals => Some(BinaryOpKind::Equals),
             TokenKind::GreaterThan => Some(BinaryOpKind::GreaterThan),
             TokenKind::LessThan => Some(BinaryOpKind::LessThan),
+            _ => None,
+        }
+    }
+
+    pub fn as_assign_op(&self) -> Option<AssignOpKind> {
+        match self {
+            TokenKind::Equals => Some(AssignOpKind::NoOp),
+            TokenKind::AddEquals => Some(AssignOpKind::Op(BinaryOpKind::Add)),
+            TokenKind::SubtractEquals => Some(AssignOpKind::Op(BinaryOpKind::Subtract)),
+            TokenKind::MultiplyEquals => Some(AssignOpKind::Op(BinaryOpKind::Multiply)),
+            TokenKind::DivideEquals => Some(AssignOpKind::Op(BinaryOpKind::Divide)),
             _ => None,
         }
     }

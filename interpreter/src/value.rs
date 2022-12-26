@@ -56,15 +56,15 @@ define_value_types! {
     Number(f64),
     String(String),
     Bool(bool),
-    Array(HeapItem<Vec<Value>>),
-    Object(HeapItem<HashMap<String, Value>>),
+    Array(HeapItem<Vec<HeapItem<Value>>>),
+    Object(HeapItem<HashMap<String, HeapItem<Value>>>),
     Fn(Rc<Fn>),
     Null
 }
 
 #[derive(Clone)]
 pub enum Fn {
-    Native(fn(&mut Context, &[Value]) -> Result<Value, Error>),
+    Native(fn(&mut Context, &[HeapItem<Value>]) -> Result<HeapItem<Value>, Error>),
     /// This is only expressly different from `ast::FnDecl` in that it does not include an ident.
     /// TODO: Store stack frame alongside function
     Interpreted {

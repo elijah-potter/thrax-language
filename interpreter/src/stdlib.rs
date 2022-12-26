@@ -3,10 +3,10 @@ use crate::{Context, Error, ShallowValue, Value};
 pub fn add_stdlib(context: &mut Context) {
     context.add_native_function("println".to_string(), |context, args| {
         for arg in args {
-            print!("{}", value_to_string(context, arg));
+            print!("{}", value_to_string(context, arg.get_inner()));
         }
         println!();
-        Ok(Value::Null)
+        Ok(context.values.push(Value::Null))
     });
     context.add_native_function("push".to_string(), |context, args| {
         if args.len() < 2 {
@@ -15,7 +15,8 @@ pub fn add_stdlib(context: &mut Context) {
 
         let mut args_iter = args.iter();
 
-        let first = args_iter.next().unwrap();
+        let first = args_iter.next().unwrap().get_inner();
+
         let Value::Array(arr_id) = first else{
                 return Err(Error::TypeError(ShallowValue::Array, first.as_shallow()));
             };
@@ -26,7 +27,7 @@ pub fn add_stdlib(context: &mut Context) {
             owned_arr.push(arg.clone())
         }
 
-        Ok(Value::Null)
+        Ok(context.values.push(Value::Null))
     });
 }
 /// Convert a [Value] to a human readable [String]
@@ -45,13 +46,13 @@ pub fn value_to_string(context: &Context, value: &Value) -> String {
 
             if arr.len() > 1 {
                 for item in arr.iter().take(arr.len() - 1) {
-                    s.push_str(value_to_string(context, item).as_str());
+                    s.push_str(value_to_string(context, item.get_inner()).as_str());
                     s.push_str(", ");
                 }
             }
 
             if let Some(item) = arr.last() {
-                s.push_str(value_to_string(context, item).as_str());
+                s.push_str(value_to_string(context, item.get_inner()).as_str());
             }
 
             s.push(']');
@@ -70,7 +71,7 @@ pub fn value_to_string(context: &Context, value: &Value) -> String {
 
                 s.push_str(": ");
 
-                s.push_str(value_to_string(context, value).as_str());
+                s.push_str(value_to_string(context, value.get_inner()).as_str());
 
                 s.push_str(", ");
             }

@@ -1,29 +1,33 @@
-use crate::Value;
-
-pub struct FoundIdentMut<'a> {
-    pub value: &'a mut Value,
+pub struct FoundIdentMut<T> {
+    pub value: T,
     pub index: usize,
 }
 
-pub struct FoundIdent<'a> {
-    pub value: &'a Value,
+pub struct FoundIdent<T> {
+    pub value: T,
     pub index: usize,
 }
 
 #[derive(Clone)]
-pub struct PoppedStack {
-    values: Vec<(String, Value)>,
+pub struct PoppedStack<T> {
+    values: Vec<(String, T)>,
     frames: Vec<usize>,
 }
 
 #[derive(Clone)]
-pub struct Stack {
-    values: Vec<(String, Value)>,
+pub struct Stack<T>
+where
+    T: Clone + Copy,
+{
+    values: Vec<(String, T)>,
     /// Each item is start of each stack frame
     frames: Vec<usize>,
 }
 
-impl Stack {
+impl<T> Stack<T>
+where
+    T: Clone + Copy,
+{
     pub fn new() -> Self {
         Self {
             values: Vec::new(),
@@ -31,7 +35,7 @@ impl Stack {
         }
     }
 
-    pub fn pop_frame(&mut self) -> Option<Vec<(String, Value)>> {
+    pub fn pop_frame(&mut self) -> Option<Vec<(String, T)>> {
         let frame = self.frames.pop()?;
 
         Some(self.values.split_off(frame))
@@ -41,12 +45,12 @@ impl Stack {
         self.frames.push(self.values.len())
     }
 
-    pub fn push_frame(&mut self, mut values: Vec<(String, Value)>) {
+    pub fn push_frame(&mut self, mut values: Vec<(String, T)>) {
         self.frames.push(self.values.len());
         self.values.append(&mut values);
     }
 
-    pub fn push_value(&mut self, ident: String, value: Value) {
+    pub fn push_value(&mut self, ident: String, value: T) {
         self.values.push((ident, value))
     }
 
@@ -59,7 +63,7 @@ impl Stack {
     }
 
     /// Pop all elements after specific index
-    pub fn pop_until_index(&mut self, index: usize) -> PoppedStack {
+    pub fn pop_until_index(&mut self, index: usize) -> PoppedStack<T> {
         let values = self.values.split_off(index + 1);
 
         let containing_frame = self
@@ -75,7 +79,7 @@ impl Stack {
         PoppedStack { values, frames }
     }
 
-    pub fn push_popped_stack(&mut self, popped: PoppedStack) {
+    pub fn push_popped_stack(&mut self, popped: PoppedStack<T>) {
         let PoppedStack {
             mut values,
             mut frames,
@@ -84,29 +88,29 @@ impl Stack {
         self.frames.append(&mut frames);
     }
 
-    pub fn find_with_ident_mut<'a>(&'a mut self, ident: &str) -> Option<FoundIdentMut<'a>> {
+    pub fn find_with_ident_mut<'a>(&'a mut self, ident: &str) -> Option<FoundIdentMut<T>> {
         let (index, value) = self
             .values
             .iter_mut()
             .enumerate()
             .rev()
-            .find_map(|(index, s)| s.0.eq(ident).then_some((index, &mut s.1)))?;
+            .find_map(|(index, s)| s.0.eq(ident).then_some((index, s.1)))?;
 
         Some(FoundIdentMut { value, index })
     }
 
-    pub fn find_with_ident<'a>(&'a self, ident: &str) -> Option<FoundIdent<'a>> {
+    pub fn find_with_ident<'a>(&'a self, ident: &str) -> Option<FoundIdent<T>> {
         let (index, value) = self
             .values
             .iter()
             .enumerate()
             .rev()
-            .find_map(|(index, s)| s.0.eq(ident).then_some((index, &s.1)))?;
+            .find_map(|(index, s)| s.0.eq(ident).then_some((index, s.1)))?;
 
         Some(FoundIdent { value, index })
     }
 
-    pub fn iter_values(&'_ self) -> impl Iterator<Item = &'_ Value> {
-        self.values.iter().map(|(_, value)| value)
+    pub fn iter_values(&'_ self) -> impl Iterator<Item = T> + '_ {
+        self.values.iter().map(|(_, value)| value.clone())
     }
 }

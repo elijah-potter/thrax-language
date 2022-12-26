@@ -1,6 +1,6 @@
 use is_macro::Is;
 
-use crate::Expr;
+use crate::{AssignOpKind, Expr};
 
 #[derive(Debug, Is, Clone)]
 pub enum Stmt {
@@ -21,8 +21,9 @@ pub struct VarDecl {
 
 #[derive(Debug, Clone)]
 pub struct VarAssign {
-    pub ident: String,
+    pub to: Expr,
     pub value: Expr,
+    pub op: AssignOpKind,
 }
 
 #[derive(Debug, Clone)]

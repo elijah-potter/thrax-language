@@ -38,13 +38,15 @@ fn main() {
             match context.eval_program(&ast) {
                 Err(err) => println!("{:#?}", err),
                 Ok(Returnable::Returned(Some(v))) => {
-                    println!("{}", v.as_shallow())
+                    println!("{}", v.get_inner().as_shallow())
                 }
                 _ => (),
             }
 
             eprintln!("FINAL STACK SIZE: {}", context.stack_size());
-            eprintln!("FINAL HEAP SIZE: {}", context.array_heap_size());
+            eprintln!("FINAL VALUE HEAP SIZE: {}", context.value_heap_size());
+            eprintln!("FINAL ARRAY HEAP SIZE: {}", context.array_heap_size());
+            eprintln!("FINAL OBJECT HEAP SIZE: {}", context.object_heap_size());
         }
         Action::Ast { filename } => {
             let ast = load_ast(&filename).expect("Could not load AST");
@@ -66,10 +68,10 @@ fn load_ast(filename: &PathBuf) -> Option<Program> {
     };
 
     match parse_tokens(&tokens) {
-        Ok(ast) => return Some(ast),
+        Ok(ast) => Some(ast),
         Err(err) => {
             eprintln!("{:#?}", err);
-            return None;
+            None
         }
-    };
+    }
 }
