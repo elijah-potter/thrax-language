@@ -135,6 +135,18 @@ impl Value {
         Bool => |a, b| Value::Bool(a == b),
         String => |a:&str, b:&str| Value::Bool(a.eq(b))
     );
+
+    pub fn run_binary_op(&self, other: &Self, op: BinaryOpKind) -> Result<Self, Error>{
+        match op {
+            ast::BinaryOpKind::Add => self.add(other),
+            ast::BinaryOpKind::Subtract => self.subtract(other),
+            ast::BinaryOpKind::Multiply => self.multiply(other),
+            ast::BinaryOpKind::Divide => self.divide(other),
+            ast::BinaryOpKind::GreaterThan => self.greater_than(other),
+            ast::BinaryOpKind::LessThan => self.less_than(other),
+            ast::BinaryOpKind::Equals => self.equals(other),
+        }
+    }
 }
 
 impl From<String> for Value {

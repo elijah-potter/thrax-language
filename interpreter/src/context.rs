@@ -106,11 +106,18 @@ impl Context {
     }
 
     fn eval_var_assign(&mut self, var_assign: &VarAssign) -> Result<(), Error> {
+        let value = self.eval_expr(&var_assign.to)?;
         let new_value = self.eval_expr(&var_assign.value)?;
 
-        let mut value = self.eval_expr(&var_assign.to)?;
 
-        value.set(new_value.get_inner().clone());
+        match var_assign.op{
+            ast::AssignOpKind::NoOp => value.set(new_value.get_inner().clone()),
+            ast::AssignOpKind::Op(op) => {
+               let arith_res = value.get_inner().run_binary_op(new_value.get_inner(), op)?;
+
+               value.set(arith_res)
+            }
+        }
 
         Ok(())
     }
@@ -265,17 +272,9 @@ impl Context {
         let c_b = self.eval_expr(b)?;
         let c_b = c_b.get_inner();
 
-        let arith_res = match kind {
-            ast::BinaryOpKind::Add => c_a.add(&c_b),
-            ast::BinaryOpKind::Subtract => c_a.subtract(&c_b),
-            ast::BinaryOpKind::Multiply => c_a.multiply(&c_b),
-            ast::BinaryOpKind::Divide => c_a.divide(&c_b),
-            ast::BinaryOpKind::GreaterThan => c_a.greater_than(&c_b),
-            ast::BinaryOpKind::LessThan => c_a.less_than(&c_b),
-            ast::BinaryOpKind::Equals => c_a.equals(&c_b),
-        };
+        let arith_res = c_a.run_binary_op(c_b, *kind)?; 
 
-        arith_res.map(|v| self.values.push(v))
+            Ok(self.values.push(arith_res))
     }
 
     pub fn run_fn(&mut self, fn_call: &FnCall) -> Result<HeapItem<Value>, Error> {
