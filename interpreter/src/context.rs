@@ -6,7 +6,7 @@ use ast::{BinaryOp, Expr, FnCall, FnDecl, Member, Program, Stmt, VarAssign, VarD
 use crate::error::Error;
 use crate::heap::{Heap, HeapItem};
 use crate::stack::{FoundIdent, FoundIdentMut, Stack};
-use crate::stdlib::add_stdlib;
+use crate::stdlib::{self, add_stdlib};
 use crate::value::{Fn, ShallowValue, Value};
 
 #[derive(Clone)]
@@ -109,13 +109,15 @@ impl Context {
         let value = self.eval_expr(&var_assign.to)?;
         let new_value = self.eval_expr(&var_assign.value)?;
 
+        let inner = self.values.get(value);
+        let new_inner = self.values.get(new_value).clone();
 
-        match var_assign.op{
-            ast::AssignOpKind::NoOp => value.set(new_value.get_inner().clone()),
+        match var_assign.op {
+            ast::AssignOpKind::NoOp => self.values.set(value, new_inner),
             ast::AssignOpKind::Op(op) => {
-               let arith_res = value.get_inner().run_binary_op(new_value.get_inner(), op)?;
+                let arith_res = inner.run_binary_op(&new_inner, op)?;
 
-               value.set(arith_res)
+                self.values.set(value, arith_res)
             }
         }
 
@@ -139,11 +141,11 @@ impl Context {
     }
 
     fn eval_while_loop(&mut self, while_loop: &WhileLoop) -> Result<Returnable, Error> {
-        while let Value::Bool(true) = self
-            .eval_expr(&while_loop.condition)?
-            .get_inner()
-            .equals(&Value::Bool(true))?
-        {
+        while let Value::Bool(true) = {
+            let res = self.eval_expr(&while_loop.condition)?;
+            let inner_res = self.values.get(res);
+            inner_res.equals(&Value::Bool(true))?
+        } {
             self.stack.open_frame();
 
             let res = self.eval_program(&while_loop.body)?;
@@ -159,11 +161,10 @@ impl Context {
     }
 
     fn eval_if_else(&mut self, if_else: &ast::IfElse) -> Result<Returnable, Error> {
-        let branch = match self
-            .eval_expr(&if_else.condition)?
-            .get_inner()
-            .equals(&Value::Bool(true))?
-        {
+        let branch = match {
+            let res = self.eval_expr(&if_else.condition)?;
+            self.values.get(res).equals(&Value::Bool(true))?
+        } {
             Value::Bool(true) => &if_else.true_branch,
             Value::Bool(false) => &if_else.else_branch,
             _ => panic!(),
@@ -194,9 +195,9 @@ impl Context {
 
     fn eval_member(&mut self, member: &Member) -> Result<HeapItem<Value>, Error> {
         let parent = self.eval_expr(&member.parent)?;
-        let parent = parent.get_inner();
         let child = self.eval_expr(&member.child)?;
-        let child = child.get_inner();
+        let parent = self.values.get(parent);
+        let child = self.values.get(child);
 
         match parent {
             Value::String(s) => {
@@ -216,7 +217,7 @@ impl Context {
             }
             Value::Array(arr_id) => {
                 if let Value::Number(index) = child {
-                    let arr = self.arrays.get(&arr_id);
+                    let arr = self.arrays.get(*arr_id);
                     let rounded = index.floor();
 
                     if rounded == *index {
@@ -232,7 +233,7 @@ impl Context {
             }
             Value::Object(obj_id) => {
                 if let Value::String(index) = child {
-                    let obj = self.objects.get(&obj_id);
+                    let obj = self.objects.get(*obj_id);
                     obj.get(index)
                         .cloned()
                         .ok_or(Error::ObjectMissingKey(index.clone()))
@@ -268,13 +269,13 @@ impl Context {
         let BinaryOp { kind, a, b } = bin_op;
 
         let c_a = self.eval_expr(a)?;
-        let c_a = c_a.get_inner();
         let c_b = self.eval_expr(b)?;
-        let c_b = c_b.get_inner();
+        let c_a = self.values.get(c_a);
+        let c_b = self.values.get(c_b);
 
-        let arith_res = c_a.run_binary_op(c_b, *kind)?; 
+        let arith_res = c_a.run_binary_op(c_b, *kind)?;
 
-            Ok(self.values.push(arith_res))
+        Ok(self.values.push(arith_res))
     }
 
     pub fn run_fn(&mut self, fn_call: &FnCall) -> Result<HeapItem<Value>, Error> {
@@ -291,7 +292,7 @@ impl Context {
                 index: definition_index,
             } = self.find_with_ident(&fn_call.ident)?;
 
-            let definition = definition.get_inner();
+            let definition = self.values.get(definition);
 
             let Value::Fn(df) = definition else{
                         return Err(Error::TypeError(ShallowValue::Fn, definition.as_shallow()));
@@ -360,16 +361,16 @@ impl Context {
                 continue;
             }
 
-            match value.get_inner() {
+            match self.values.get(value) {
                 Value::Array(arr_id) => {
-                    let arr = self.arrays.get(arr_id);
+                    let arr = self.arrays.get(*arr_id);
                     for item in arr {
                         search_queue.push_back(*item);
                     }
                     completed_arrays.insert(*arr_id);
                 }
                 Value::Object(obj_id) => {
-                    let obj = self.objects.get(obj_id);
+                    let obj = self.objects.get(*obj_id);
                     for value in obj.values() {
                         search_queue.push_back(*value);
                     }

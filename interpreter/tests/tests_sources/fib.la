@@ -9,7 +9,7 @@ fn fib(n) {
 let results = [];
 
 let i = 0;
-let up_to = 32;
+let up_to = 20;
 
 while (i < up_to){
   let c = fib(i);

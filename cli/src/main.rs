@@ -37,9 +37,7 @@ fn main() {
 
             match context.eval_program(&ast) {
                 Err(err) => println!("{:#?}", err),
-                Ok(Returnable::Returned(Some(v))) => {
-                    println!("{}", v.get_inner().as_shallow())
-                }
+                Ok(Returnable::Returned(Some(v))) => {}
                 _ => (),
             }
 

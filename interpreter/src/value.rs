@@ -136,7 +136,7 @@ impl Value {
         String => |a:&str, b:&str| Value::Bool(a.eq(b))
     );
 
-    pub fn run_binary_op(&self, other: &Self, op: BinaryOpKind) -> Result<Self, Error>{
+    pub fn run_binary_op(&self, other: &Self, op: BinaryOpKind) -> Result<Self, Error> {
         match op {
             ast::BinaryOpKind::Add => self.add(other),
             ast::BinaryOpKind::Subtract => self.subtract(other),

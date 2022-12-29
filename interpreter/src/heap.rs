@@ -22,7 +22,7 @@ impl<T> Eq for HeapItem<T> {}
 impl<T> Clone for HeapItem<T> {
     fn clone(&self) -> Self {
         Self {
-            inner: self.inner.clone(),
+            inner: self.inner
         }
     }
 }
@@ -30,20 +30,9 @@ impl<T> Clone for HeapItem<T> {
 impl<T> Copy for HeapItem<T> {}
 
 impl<T> HeapItem<T> {
-    pub fn set(&self, new_value: T) {
-        unsafe { *self.inner = new_value }
-    }
-}
-
-impl<T> HeapItem<T> {
     /// Create a new HeapItem from a pointer
     fn new(inner: *mut T) -> Self {
         Self { inner }
-    }
-
-    /// Inspect the value in the heap
-    pub fn get_inner<'a>(&'a self) -> &'a T {
-        unsafe { &*self.inner }
     }
 }
 
@@ -88,16 +77,24 @@ impl<T> Heap<T> {
         });
     }
 
-    pub fn get_mut<'a>(&'a mut self, key: &HeapItem<T>) -> &'a mut T {
-        if self.allocated.contains(&key) {
+    pub fn set(&mut self, key: HeapItem<T>, new_value: T) {
+        if !cfg!(debug_assertions) || self.allocated.contains(&key) {
+            unsafe { *key.inner = new_value }
+        } else {
+            panic!("HEAP DOES NOT CONTAIN POINTER")
+        }
+    }
+
+    pub fn get_mut<'a>(&'a mut self, key: HeapItem<T>) -> &'a mut T {
+        if !cfg!(debug_assertions) || self.allocated.contains(&key) {
             unsafe { &mut *key.inner }
         } else {
             panic!("HEAP DOES NOT CONTAIN POINTER")
         }
     }
 
-    pub fn get<'a>(&'a self, key: &HeapItem<T>) -> &'a T {
-        if self.allocated.contains(&key) {
+    pub fn get<'a>(&'a self, key: HeapItem<T>) -> &'a T {
+        if !cfg!(debug_assertions) || self.allocated.contains(&key) {
             unsafe { &mut *key.inner }
         } else {
             panic!("HEAP DOES NOT CONTAIN POINTER")
