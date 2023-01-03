@@ -15,36 +15,25 @@ struct Args {
 
 #[derive(Debug, Subcommand)]
 enum Action {
-    Run {
-        filename: PathBuf,
-        #[arg(long, short, default_value_t = false)]
-        no_gc: bool,
-    },
-    Ast {
-        filename: PathBuf,
-    },
+    Run { filename: PathBuf },
+    Ast { filename: PathBuf },
 }
 
 fn main() {
     let args = Args::parse();
 
     match args.subcommand {
-        Action::Run { filename, no_gc } => {
+        Action::Run { filename } => {
             let ast = load_ast(&filename).expect("Could not load AST");
 
-            let mut context = Context::new(!no_gc);
+            let mut context = Context::new();
             context.add_stdlib();
 
             match context.eval_program(&ast) {
                 Err(err) => println!("{:#?}", err),
-                Ok(Returnable::Returned(Some(v))) => {}
+                Ok(Returnable::Returned(Some(_v))) => {}
                 _ => (),
             }
-
-            eprintln!("FINAL STACK SIZE: {}", context.stack_size());
-            eprintln!("FINAL VALUE HEAP SIZE: {}", context.value_heap_size());
-            eprintln!("FINAL ARRAY HEAP SIZE: {}", context.array_heap_size());
-            eprintln!("FINAL OBJECT HEAP SIZE: {}", context.object_heap_size());
         }
         Action::Ast { filename } => {
             let ast = load_ast(&filename).expect("Could not load AST");

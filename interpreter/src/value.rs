@@ -1,22 +1,21 @@
 use std::collections::HashMap;
 use std::fmt::Display;
+use std::ops::Deref;
 use std::rc::Rc;
 
 use ast::{BinaryOpKind, Stmt};
+use gc::{Finalize, GcCell, Trace, GcCellRefMut, GcCellRef, Gc};
 
 use crate::error::Error;
-use crate::heap::HeapItem;
 use crate::Context;
 
 /// [Value] is a dynamically typed nullable value.
-///
-/// A value that _can_ be undefined is expressed as an `Option<Value>`
 macro_rules! define_value_types {
     ($inner:ty) => {
         _
     };
     ($($kind:ident$(($contains:ty))?),*) => {
-        #[derive(Clone)]
+        #[derive(Clone, Trace, Finalize)]
         pub enum Value {
             $(
                 $kind $(($contains))?,
@@ -52,23 +51,107 @@ macro_rules! define_value_types {
     };
 }
 
+#[derive(Clone, Trace, Finalize)]
+pub struct GcValue{
+    inner: Gc<GcCell<Value>>
+}
+
+impl GcValue{
+    pub fn new(value: Value) -> Self{
+        Self { inner: Gc::new(GcCell::new(value)) }
+    }
+
+    pub fn borrow(&self) -> GcCellRef<'_, Value> {
+        self.inner.borrow()
+    }
+
+    pub fn borrow_mut(&self) -> GcCellRefMut<'_, Value> {
+        self.inner.borrow_mut()
+    }
+}
+
+impl Display for GcValue{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.borrow().deref() {
+        Value::Number(n) => write!(f, "{n}"),
+        Value::String(s) => write!(f, "{s}"),
+        Value::Bool(b) => write!(f, "{b}"),
+        Value::Array(arr) => {
+            let mut s = String::new();
+            s.push('[');
+
+            if arr.len() > 1 {
+                for item in arr.iter().take(arr.len() - 1) {
+                    s.push_str(format!("{item},").as_str())
+                }
+            }
+
+            if let Some(item) = arr.last() {
+                s.push_str(format!("{item}").as_str())
+            }
+
+            s.push(']');
+
+            write!(f, "{s}")
+        }
+        Value::Object(obj) => {
+            let mut s = String::new();
+
+            s.push('{');
+
+            for (key, value) in obj.iter() {
+                s.push_str(key);
+
+                s.push_str(": ");
+
+                s.push_str(format!("{value}").as_str());
+
+                s.push_str(", ");
+            }
+
+            s.push('}');
+
+            write!(f, "{s}")
+        }
+        Value::Fn(_) => write!(f, "Function"),
+        Value::Null => write!(f, "Null"),
+    }
+    }
+}
+
+impl std::fmt::Debug for GcValue{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
+    }
+}
+
+impl Value {
+    pub fn into_gc(self) -> GcValue {
+        GcValue::new(self)
+    }
+}
+
 define_value_types! {
     Number(f64),
     String(String),
     Bool(bool),
-    Array(HeapItem<Vec<HeapItem<Value>>>),
-    Object(HeapItem<HashMap<String, HeapItem<Value>>>),
+    Array(Vec<GcValue>),
+    Object(HashMap<String, GcValue>),
     Fn(Rc<Fn>),
     Null
 }
 
-#[derive(Clone)]
+pub type NativeFn = fn(&mut Context, &[GcValue]) -> Result<GcValue, Error>;
+
+#[derive(Clone, Trace, Finalize)]
 pub enum Fn {
-    Native(fn(&mut Context, &[HeapItem<Value>]) -> Result<HeapItem<Value>, Error>),
+    Native(#[unsafe_ignore_trace] NativeFn),
     /// This is only expressly different from `ast::FnDecl` in that it does not include an ident.
     /// TODO: Store stack frame alongside function
     Interpreted {
+        #[unsafe_ignore_trace]
         prop_idents: Vec<String>,
+        #[unsafe_ignore_trace]
         body: Vec<Stmt>,
     },
 }

@@ -1,7 +1,4 @@
-pub struct FoundIdentMut<T> {
-    pub value: T,
-    pub index: usize,
-}
+use std::fmt::Display;
 
 pub struct FoundIdent<T> {
     pub value: T,
@@ -14,10 +11,10 @@ pub struct PoppedStack<T> {
     frames: Vec<usize>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Stack<T>
 where
-    T: Clone + Copy,
+    T: Clone,
 {
     values: Vec<(String, T)>,
     /// Each item is start of each stack frame
@@ -26,7 +23,7 @@ where
 
 impl<T> Stack<T>
 where
-    T: Clone + Copy,
+    T: Clone,
 {
     pub fn new() -> Self {
         Self {
@@ -88,29 +85,38 @@ where
         self.frames.append(&mut frames);
     }
 
-    pub fn find_with_ident_mut<'a>(&'a mut self, ident: &str) -> Option<FoundIdentMut<T>> {
-        let (index, value) = self
-            .values
-            .iter_mut()
-            .enumerate()
-            .rev()
-            .find_map(|(index, s)| s.0.eq(ident).then_some((index, s.1)))?;
-
-        Some(FoundIdentMut { value, index })
-    }
-
     pub fn find_with_ident<'a>(&'a self, ident: &str) -> Option<FoundIdent<T>> {
         let (index, value) = self
             .values
             .iter()
             .enumerate()
             .rev()
-            .find_map(|(index, s)| s.0.eq(ident).then_some((index, s.1)))?;
+            .find_map(|(index, s)| s.0.eq(ident).then_some((index, s.1.clone())))?;
 
         Some(FoundIdent { value, index })
     }
 
     pub fn iter_values(&'_ self) -> impl Iterator<Item = T> + '_ {
         self.values.iter().map(|(_, value)| value.clone())
+    } 
+}
+
+impl<T> Display for Stack<T>
+where T: Display + Clone{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut current_frame = 0;
+
+        for i in 0..self.values.len(){
+            if let Some(next_frame_start) =   self.frames.get(current_frame + 1){
+                if i > *next_frame_start{
+                    current_frame += 1;
+                    writeln!(f, "FRAME: {current_frame}")?;
+                }
+            }
+
+            writeln!(f, "\t{}: {}", self.values[i].0, self.values[i].1)?;
+        }
+
+        Ok(())
     }
 }

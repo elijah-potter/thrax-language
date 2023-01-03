@@ -1,6 +1,5 @@
 mod context;
 mod error;
-mod heap;
 mod stack;
 mod stdlib;
 mod value;

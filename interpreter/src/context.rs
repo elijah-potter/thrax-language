@@ -1,53 +1,37 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::HashMap;
 use std::rc::Rc;
 
-use ast::{BinaryOp, Expr, FnCall, FnDecl, Member, Program, Stmt, VarAssign, VarDecl, WhileLoop};
+use ast::{
+    AssignOpKind, BinaryOp, Expr, FnCall, FnDecl, Member, Program, Stmt, VarAssign, VarDecl,
+    WhileLoop,
+};
 
 use crate::error::Error;
-use crate::heap::{Heap, HeapItem};
-use crate::stack::{FoundIdent, FoundIdentMut, Stack};
-use crate::stdlib::{self, add_stdlib};
-use crate::value::{Fn, ShallowValue, Value};
+use crate::stack::{FoundIdent, Stack};
+use crate::stdlib::add_stdlib;
+use crate::value::{Fn, GcValue, NativeFn, ShallowValue, Value};
 
 #[derive(Clone)]
 pub enum Returnable {
-    Returned(Option<HeapItem<Value>>),
+    Returned(Option<GcValue>),
     Completed,
 }
 
-type ValueRef = HeapItem<Value>;
-
 #[derive(Clone)]
 pub struct Context {
-    /// Values on the stack refer to values in `values`
-    stack: Stack<ValueRef>,
-    pub(crate) values: Heap<Value>,
-    pub(crate) arrays: Heap<Vec<HeapItem<Value>>>,
-    pub(crate) objects: Heap<HashMap<String, HeapItem<Value>>>,
-    use_gc: bool,
+    stack: Stack<GcValue>,
 }
 
 impl Context {
-    #[must_use]
-    pub fn new(use_gc: bool) -> Self {
+    pub fn new() -> Self {
         Self {
             stack: Stack::new(),
-            values: Heap::new(),
-            arrays: Heap::new(),
-            objects: Heap::new(),
-            use_gc,
         }
     }
 
-    pub fn add_native_function(
-        &mut self,
-        name: String,
-        native_fn: fn(&mut Self, &[HeapItem<Value>]) -> Result<HeapItem<Value>, Error>,
-    ) {
-        self.stack.push_value(
-            name,
-            self.values.push(Value::Fn(Rc::new(Fn::Native(native_fn)))),
-        );
+    pub fn add_native_function(&mut self, name: String, native_fn: NativeFn) {
+        self.stack
+            .push_value(name, Value::Fn(Rc::new(Fn::Native(native_fn))).into_gc());
     }
 
     /// Courtesey wrapper for [`crate::stdlib::add_stdlib`]
@@ -90,10 +74,6 @@ impl Context {
     }
 
     fn eval_var_decl(&mut self, var_decl: &VarDecl) -> Result<(), Error> {
-        if self.use_gc {
-            self.collect_garbage();
-        }
-
         let Err(_) = self.find_with_ident(&var_decl.ident) else {
             return Err(Error::Redeclaration(var_decl.ident.clone()));
         };
@@ -106,18 +86,20 @@ impl Context {
     }
 
     fn eval_var_assign(&mut self, var_assign: &VarAssign) -> Result<(), Error> {
-        let value = self.eval_expr(&var_assign.to)?;
         let new_value = self.eval_expr(&var_assign.value)?;
+        let new_value = new_value.borrow();
 
-        let inner = self.values.get(value);
-        let new_inner = self.values.get(new_value).clone();
+        let value = self.eval_expr(&var_assign.to)?;
+        let mut value = value.borrow_mut();
 
         match var_assign.op {
-            ast::AssignOpKind::NoOp => self.values.set(value, new_inner),
-            ast::AssignOpKind::Op(op) => {
-                let arith_res = inner.run_binary_op(&new_inner, op)?;
+            AssignOpKind::NoOp => {
+                *value = new_value.clone();
+            }
+            AssignOpKind::Op(op) => {
+                let arith_res = value.run_binary_op(&new_value, op)?;
 
-                self.values.set(value, arith_res)
+                *value = arith_res;
             }
         }
 
@@ -131,10 +113,11 @@ impl Context {
 
         self.stack.push_value(
             fn_decl.ident.clone(),
-            self.values.push(Value::Fn(Rc::new(Fn::Interpreted {
+            Value::Fn(Rc::new(Fn::Interpreted {
                 prop_idents: fn_decl.prop_idents.clone(),
                 body: fn_decl.body.clone(),
-            }))),
+            }))
+            .into_gc(),
         );
 
         Ok(())
@@ -143,8 +126,8 @@ impl Context {
     fn eval_while_loop(&mut self, while_loop: &WhileLoop) -> Result<Returnable, Error> {
         while let Value::Bool(true) = {
             let res = self.eval_expr(&while_loop.condition)?;
-            let inner_res = self.values.get(res);
-            inner_res.equals(&Value::Bool(true))?
+            let res = res.borrow();
+            res.equals(&Value::Bool(true))?
         } {
             self.stack.open_frame();
 
@@ -163,7 +146,8 @@ impl Context {
     fn eval_if_else(&mut self, if_else: &ast::IfElse) -> Result<Returnable, Error> {
         let branch = match {
             let res = self.eval_expr(&if_else.condition)?;
-            self.values.get(res).equals(&Value::Bool(true))?
+            let res = res.borrow();
+            res.equals(&Value::Bool(true))?
         } {
             Value::Bool(true) => &if_else.true_branch,
             Value::Bool(false) => &if_else.else_branch,
@@ -179,12 +163,12 @@ impl Context {
         res
     }
 
-    fn eval_expr(&mut self, expr: &Expr) -> Result<HeapItem<Value>, Error> {
+    fn eval_expr(&mut self, expr: &Expr) -> Result<GcValue, Error> {
         match expr {
-            Expr::Ident(i) => self.find_with_ident(i).map(|v| v.value.clone()),
-            Expr::NumberLiteral(n) => Ok(self.values.push(Value::Number(*n))),
-            Expr::StringLiteral(s) => Ok(self.values.push(Value::String(s.clone()))),
-            Expr::BoolLiteral(b) => Ok(self.values.push(Value::Bool(*b))),
+            Expr::Ident(i) => self.find_with_ident(i).map(|v| v.value),
+            Expr::NumberLiteral(n) => Ok(Value::Number(*n).into_gc()),
+            Expr::StringLiteral(s) => Ok(Value::String(s.clone()).into_gc()),
+            Expr::BoolLiteral(b) => Ok(Value::Bool(*b).into_gc()),
             Expr::ArrayLiteral(arr) => self.eval_array_lit(arr),
             Expr::ObjectLiteral(obj) => self.eval_object_lit(obj),
             Expr::BinaryOp(bin_op) => self.eval_binary_op(bin_op),
@@ -193,50 +177,49 @@ impl Context {
         }
     }
 
-    fn eval_member(&mut self, member: &Member) -> Result<HeapItem<Value>, Error> {
-        let parent = self.eval_expr(&member.parent)?;
+    fn eval_member(&mut self, member: &Member) -> Result<GcValue, Error> {
         let child = self.eval_expr(&member.child)?;
-        let parent = self.values.get(parent);
-        let child = self.values.get(child);
+        let child = child.borrow();
 
-        match parent {
+        let parent = self.eval_expr(&member.parent)?;
+        let parent = parent.borrow_mut();
+
+        match &*parent {
             Value::String(s) => {
-                if let Value::Number(index) = child {
+                if let Value::Number(index) = *child {
                     let rounded = index.floor();
-                    if rounded == *index {
+                    if rounded == index {
                         s.chars()
                             .nth(rounded as usize)
                             .ok_or(Error::IndexOutOfBounds(rounded as usize))
-                            .map(|c| self.values.push(c.to_string().into())) // TODO: Once we add chars, remove this last bit
+                            .map(|c| Value::String(c.to_string()).into_gc()) // TODO: Once we add chars, remove this last bit
                     } else {
-                        Err(Error::ExpectedInteger(*index))
+                        Err(Error::ExpectedInteger(index))
                     }
                 } else {
                     Err(Error::TypeError(ShallowValue::Number, child.as_shallow()))
                 }
             }
-            Value::Array(arr_id) => {
-                if let Value::Number(index) = child {
-                    let arr = self.arrays.get(*arr_id);
+            Value::Array(arr) => {
+                if let Value::Number(index) = *child {
                     let rounded = index.floor();
 
-                    if rounded == *index {
+                    if rounded == index {
                         arr.get(rounded as usize)
                             .cloned()
                             .ok_or(Error::IndexOutOfBounds(rounded as usize))
                     } else {
-                        Err(Error::ExpectedInteger(*index))
+                        Err(Error::ExpectedInteger(index))
                     }
                 } else {
                     Err(Error::TypeError(ShallowValue::Number, child.as_shallow()))
                 }
             }
-            Value::Object(obj_id) => {
-                if let Value::String(index) = child {
-                    let obj = self.objects.get(*obj_id);
+            Value::Object(obj) => {
+                if let Value::String(index) = &*child {
                     obj.get(index)
                         .cloned()
-                        .ok_or(Error::ObjectMissingKey(index.clone()))
+                        .ok_or_else(|| Error::ObjectMissingKey(index.clone()))
                 } else {
                     Err(Error::TypeError(ShallowValue::Number, child.as_shallow()))
                 }
@@ -245,16 +228,16 @@ impl Context {
         }
     }
 
-    fn eval_array_lit(&mut self, arr: &[Expr]) -> Result<HeapItem<Value>, Error> {
+    fn eval_array_lit(&mut self, arr: &[Expr]) -> Result<GcValue, Error> {
         let mut results = Vec::with_capacity(arr.len());
         for expr in arr.iter() {
             let result = self.eval_expr(expr)?;
             results.push(result);
         }
-        Ok(self.values.push(Value::Array(self.arrays.push(results))))
+        Ok((Value::Array(results)).into_gc())
     }
 
-    fn eval_object_lit(&mut self, obj: &HashMap<String, Expr>) -> Result<HeapItem<Value>, Error> {
+    fn eval_object_lit(&mut self, obj: &HashMap<String, Expr>) -> Result<GcValue, Error> {
         let mut results = HashMap::with_capacity(obj.len());
 
         for (key, expr) in obj {
@@ -262,23 +245,23 @@ impl Context {
             results.insert(key.to_string(), result);
         }
 
-        Ok(self.values.push(Value::Object(self.objects.push(results))))
+        Ok(Value::Object(results).into_gc())
     }
 
-    fn eval_binary_op(&mut self, bin_op: &BinaryOp) -> Result<HeapItem<Value>, Error> {
+    fn eval_binary_op(&mut self, bin_op: &BinaryOp) -> Result<GcValue, Error> {
         let BinaryOp { kind, a, b } = bin_op;
 
         let c_a = self.eval_expr(a)?;
+        let c_a = c_a.borrow();
         let c_b = self.eval_expr(b)?;
-        let c_a = self.values.get(c_a);
-        let c_b = self.values.get(c_b);
+        let c_b = c_b.borrow();
 
-        let arith_res = c_a.run_binary_op(c_b, *kind)?;
+        let arith_res = c_a.run_binary_op(&c_b, *kind)?;
 
-        Ok(self.values.push(arith_res))
+        Ok((arith_res).into_gc())
     }
 
-    pub fn run_fn(&mut self, fn_call: &FnCall) -> Result<HeapItem<Value>, Error> {
+    pub fn run_fn(&mut self, fn_call: &FnCall) -> Result<GcValue, Error> {
         let mut args = Vec::with_capacity(fn_call.args.len());
 
         for arg in &fn_call.args {
@@ -292,9 +275,9 @@ impl Context {
                 index: definition_index,
             } = self.find_with_ident(&fn_call.ident)?;
 
-            let definition = self.values.get(definition);
+            let definition = definition.borrow();
 
-            let Value::Fn(df) = definition else{
+            let Value::Fn(df) = &*definition else{
                         return Err(Error::TypeError(ShallowValue::Fn, definition.as_shallow()));
                     };
 
@@ -324,89 +307,23 @@ impl Context {
                 self.stack.push_popped_stack(old);
 
                 if let Returnable::Returned(r) = res {
-                    return Ok(r.unwrap_or(self.values.push(Value::Null)));
+                    return Ok(r.unwrap_or_else(|| (Value::Null).into_gc()));
                 }
 
-                Ok(self.values.push(Value::Null))
+                Ok((Value::Null).into_gc())
             }
         }
     }
 
-    pub fn find_with_ident_mut<'a>(
-        &'a mut self,
-        ident: &str,
-    ) -> Result<FoundIdentMut<HeapItem<Value>>, Error> {
-        self.stack
-            .find_with_ident_mut(ident)
-            .ok_or_else(|| Error::Undeclared(ident.to_string()))
-    }
-
-    pub fn find_with_ident<'a>(
-        &'a self,
-        ident: &str,
-    ) -> Result<FoundIdent<HeapItem<Value>>, Error> {
+    pub fn find_with_ident(&self, ident: &str) -> Result<FoundIdent<GcValue>, Error> {
         self.stack
             .find_with_ident(ident)
             .ok_or_else(|| Error::Undeclared(ident.to_string()))
     }
+}
 
-    pub fn collect_garbage(&mut self) {
-        let mut search_queue: VecDeque<_> = self.stack.iter_values().collect();
-        let mut completed = HashSet::new();
-        let mut completed_arrays = HashSet::new();
-        let mut completed_objects = HashSet::new();
-
-        while let Some(value) = search_queue.pop_front() {
-            if completed.contains(&value) {
-                continue;
-            }
-
-            match self.values.get(value) {
-                Value::Array(arr_id) => {
-                    let arr = self.arrays.get(*arr_id);
-                    for item in arr {
-                        search_queue.push_back(*item);
-                    }
-                    completed_arrays.insert(*arr_id);
-                }
-                Value::Object(obj_id) => {
-                    let obj = self.objects.get(*obj_id);
-                    for value in obj.values() {
-                        search_queue.push_back(*value);
-                    }
-                    completed_objects.insert(*obj_id);
-                }
-                _ => (),
-            }
-
-            completed.insert(value);
-        }
-
-        self.values
-            .filter_keys(completed.into_iter().collect::<Vec<_>>().as_slice());
-        self.arrays
-            .filter_keys(completed_arrays.into_iter().collect::<Vec<_>>().as_slice());
-        self.objects
-            .filter_keys(completed_objects.into_iter().collect::<Vec<_>>().as_slice());
-    }
-
-    /// Get the number of [Value]'s in the stack
-    pub fn stack_size(&self) -> usize {
-        self.stack.value_len()
-    }
-
-    /// Get the number of values in the value heap
-    pub fn value_heap_size(&self) -> usize {
-        self.values.len()
-    }
-
-    /// Get the number of arrays in the array heap
-    pub fn array_heap_size(&self) -> usize {
-        self.arrays.len()
-    }
-
-    /// Get the number of objects in the object heap
-    pub fn object_heap_size(&self) -> usize {
-        self.objects.len()
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
     }
 }

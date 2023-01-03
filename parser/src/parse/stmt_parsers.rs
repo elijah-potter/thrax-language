@@ -1,4 +1,4 @@
-use ast::{BinaryOp, BinaryOpKind, Expr, FnDecl, FnReturn, Stmt, VarAssign, VarDecl};
+use ast::{FnDecl, FnReturn, Stmt, VarAssign, VarDecl};
 
 use super::common_parsers::{parse_prop_ident_list, FoundPropIdentList};
 use super::expr_parsers::parse_expr;
