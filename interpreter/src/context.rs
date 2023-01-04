@@ -12,8 +12,10 @@ use crate::stdlib::add_stdlib;
 use crate::value::{Fn, GcValue, NativeFn, ShallowValue, Value};
 
 #[derive(Clone)]
-pub enum Returnable {
+pub enum BlockExit {
     Returned(Option<GcValue>),
+    Break,
+    Continue,
     Completed,
 }
 
@@ -39,36 +41,45 @@ impl Context {
         add_stdlib(self)
     }
 
-    pub fn eval_program(&mut self, program: &Program) -> Result<Returnable, Error> {
+    pub fn eval_program(&mut self, program: &Program) -> Result<BlockExit, Error> {
         for stmt in program {
-            if let Returnable::Returned(r) = self.eval_stmt(stmt)? {
-                return Ok(Returnable::Returned(r));
+            let res = self.eval_stmt(stmt)?;
+
+            if !matches!(res, BlockExit::Completed) {
+                return Ok(res);
             }
         }
 
-        Ok(Returnable::Completed)
+        Ok(BlockExit::Completed)
     }
 
-    pub fn eval_stmt(&mut self, stmt: &Stmt) -> Result<Returnable, Error> {
+    pub fn eval_stmt(&mut self, stmt: &Stmt) -> Result<BlockExit, Error> {
         match stmt {
-            Stmt::VarDecl(var_decl) => self.eval_var_decl(var_decl).map(|_| Returnable::Completed),
+            Stmt::VarDecl(var_decl) => self.eval_var_decl(var_decl).map(|_| BlockExit::Completed),
             Stmt::VarAssign(var_assign) => self
                 .eval_var_assign(var_assign)
-                .map(|_| Returnable::Completed),
-            Stmt::FnDecl(fn_decl) => self.eval_fn_decl(fn_decl).map(|_| Returnable::Completed),
+                .map(|_| BlockExit::Completed),
+            Stmt::FnDecl(fn_decl) => self.eval_fn_decl(fn_decl).map(|_| BlockExit::Completed),
             Stmt::Expr(expr) => self
                 .eval_expr(expr)
                 .map(|_| ())
-                .map(|_| Returnable::Completed),
+                .map(|_| BlockExit::Completed),
             Stmt::IfElse(if_else) => self.eval_if_else(if_else),
             Stmt::WhileLoop(while_loop) => self.eval_while_loop(while_loop),
-            Stmt::FnReturn(fn_return) => {
-                let Some(value) = &fn_return.value else{
-                    return Ok(Returnable::Returned(None));
+            Stmt::BlockExit(block_exit) => {
+                let exit = match block_exit {
+                    ast::BlockExit::FnReturn(res) => {
+                        if let Some(expr) = res {
+                            BlockExit::Returned(Some(self.eval_expr(expr)?))
+                        } else {
+                            BlockExit::Returned(None)
+                        }
+                    }
+                    ast::BlockExit::Break => BlockExit::Break,
+                    ast::BlockExit::Continue => BlockExit::Continue,
                 };
 
-                let returned_value = self.eval_expr(value)?;
-                Ok(Returnable::Returned(Some(returned_value)))
+                Ok(exit)
             }
         }
     }
@@ -123,7 +134,7 @@ impl Context {
         Ok(())
     }
 
-    fn eval_while_loop(&mut self, while_loop: &WhileLoop) -> Result<Returnable, Error> {
+    fn eval_while_loop(&mut self, while_loop: &WhileLoop) -> Result<BlockExit, Error> {
         while let Value::Bool(true) = {
             let res = self.eval_expr(&while_loop.condition)?;
             let res = res.borrow();
@@ -135,15 +146,17 @@ impl Context {
 
             self.stack.pop_frame();
 
-            if let Returnable::Returned(r) = res {
-                return Ok(Returnable::Returned(r));
+             match res{
+                BlockExit::Returned(r) => return Ok(BlockExit::Returned(r)),
+                BlockExit::Break => return Ok(BlockExit::Completed),
+                _ => ()
             }
         }
 
-        Ok(Returnable::Completed)
+        Ok(BlockExit::Completed)
     }
 
-    fn eval_if_else(&mut self, if_else: &ast::IfElse) -> Result<Returnable, Error> {
+    fn eval_if_else(&mut self, if_else: &ast::IfElse) -> Result<BlockExit, Error> {
         let branch = match {
             let res = self.eval_expr(&if_else.condition)?;
             let res = res.borrow();
@@ -306,7 +319,7 @@ impl Context {
                 // Replace old scopes
                 self.stack.push_popped_stack(old);
 
-                if let Returnable::Returned(r) = res {
+                if let BlockExit::Returned(r) = res {
                     return Ok(r.unwrap_or_else(|| (Value::Null).into_gc()));
                 }
 

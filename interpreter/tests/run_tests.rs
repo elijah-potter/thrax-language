@@ -1,4 +1,4 @@
-use interpreter::{Context, Returnable};
+use interpreter::{Context, BlockExit};
 
 macro_rules! create_test {
     ($filename:ident, $e:pat) => {
@@ -17,10 +17,11 @@ macro_rules! create_test {
     };
 }
 
-create_test!(while_loop, Returnable::Completed);
-create_test!(fib, Returnable::Returned(Some(_)));
-create_test!(empty_fn, Returnable::Completed);
-create_test!(add_fns, Returnable::Completed);
-create_test!(cyclic_arrays, Returnable::Completed);
-create_test!(index_object, Returnable::Completed);
-create_test!(timing, Returnable::Completed);
+create_test!(while_loop, BlockExit::Completed);
+create_test!(fib, BlockExit::Returned(Some(_)));
+create_test!(empty_fn, BlockExit::Completed);
+create_test!(add_fns, BlockExit::Completed);
+create_test!(cyclic_arrays, BlockExit::Completed);
+create_test!(index_object, BlockExit::Completed);
+create_test!(timing, BlockExit::Completed);
+create_test!(break_continue, BlockExit::Returned(Some(_)));

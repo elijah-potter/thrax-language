@@ -98,17 +98,19 @@ where
 
     pub fn iter_values(&'_ self) -> impl Iterator<Item = T> + '_ {
         self.values.iter().map(|(_, value)| value.clone())
-    } 
+    }
 }
 
 impl<T> Display for Stack<T>
-where T: Display + Clone{
+where
+    T: Display + Clone,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut current_frame = 0;
 
-        for i in 0..self.values.len(){
-            if let Some(next_frame_start) =   self.frames.get(current_frame + 1){
-                if i > *next_frame_start{
+        for i in 0..self.values.len() {
+            if let Some(next_frame_start) = self.frames.get(current_frame + 1) {
+                if i > *next_frame_start {
                     current_frame += 1;
                     writeln!(f, "FRAME: {current_frame}")?;
                 }

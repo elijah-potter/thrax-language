@@ -8,7 +8,7 @@ pub enum Stmt {
     VarAssign(VarAssign),
     FnDecl(FnDecl),
     WhileLoop(WhileLoop),
-    FnReturn(FnReturn),
+    BlockExit(BlockExit),
     IfElse(IfElse),
     Expr(Expr),
 }
@@ -40,8 +40,10 @@ pub struct WhileLoop {
 }
 
 #[derive(Debug, Clone)]
-pub struct FnReturn {
-    pub value: Option<Expr>,
+pub enum BlockExit {
+    FnReturn(Option<Expr>),
+    Break,
+    Continue,
 }
 
 #[derive(Debug, Clone)]

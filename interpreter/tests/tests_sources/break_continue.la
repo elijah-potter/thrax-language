@@ -1,0 +1,19 @@
+let i = 10 ** 3;
+
+// Simulate a do-while loop
+while (true){
+  i -= 1; 
+
+  if (i == 0){
+    break;
+  }
+
+  continue;
+
+  while(true){
+    println("IMPOSSIBLE, should have gone to next iteration of loop.");
+  }
+}
+
+println("Control flow did as expected!");
+return i;

@@ -96,6 +96,8 @@ define_token_types! {
     Let,
     Fn,
     Return,
+    Break,
+    Continue,
     While,
     If,
     Else,

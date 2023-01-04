@@ -1,5 +1,4 @@
 // Get the time (in milliseconds) since the Unix Epoch
-
 let time = timestamp();
 
 // Similar to Python, `a ** b` raises a to the power of b

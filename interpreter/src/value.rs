@@ -4,7 +4,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use ast::{BinaryOpKind, Stmt};
-use gc::{Finalize, GcCell, Trace, GcCellRefMut, GcCellRef, Gc};
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::error::Error;
 use crate::Context;
@@ -52,13 +52,15 @@ macro_rules! define_value_types {
 }
 
 #[derive(Clone, Trace, Finalize)]
-pub struct GcValue{
-    inner: Gc<GcCell<Value>>
+pub struct GcValue {
+    inner: Gc<GcCell<Value>>,
 }
 
-impl GcValue{
-    pub fn new(value: Value) -> Self{
-        Self { inner: Gc::new(GcCell::new(value)) }
+impl GcValue {
+    pub fn new(value: Value) -> Self {
+        Self {
+            inner: Gc::new(GcCell::new(value)),
+        }
     }
 
     pub fn borrow(&self) -> GcCellRef<'_, Value> {
@@ -70,56 +72,56 @@ impl GcValue{
     }
 }
 
-impl Display for GcValue{
+impl Display for GcValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.borrow().deref() {
-        Value::Number(n) => write!(f, "{n}"),
-        Value::String(s) => write!(f, "{s}"),
-        Value::Bool(b) => write!(f, "{b}"),
-        Value::Array(arr) => {
-            let mut s = String::new();
-            s.push('[');
+            Value::Number(n) => write!(f, "{n}"),
+            Value::String(s) => write!(f, "{s}"),
+            Value::Bool(b) => write!(f, "{b}"),
+            Value::Array(arr) => {
+                let mut s = String::new();
+                s.push('[');
 
-            if arr.len() > 1 {
-                for item in arr.iter().take(arr.len() - 1) {
-                    s.push_str(format!("{item},").as_str())
+                if arr.len() > 1 {
+                    for item in arr.iter().take(arr.len() - 1) {
+                        s.push_str(format!("{item},").as_str())
+                    }
                 }
+
+                if let Some(item) = arr.last() {
+                    s.push_str(format!("{item}").as_str())
+                }
+
+                s.push(']');
+
+                write!(f, "{s}")
             }
+            Value::Object(obj) => {
+                let mut s = String::new();
 
-            if let Some(item) = arr.last() {
-                s.push_str(format!("{item}").as_str())
+                s.push('{');
+
+                for (key, value) in obj.iter() {
+                    s.push_str(key);
+
+                    s.push_str(": ");
+
+                    s.push_str(format!("{value}").as_str());
+
+                    s.push_str(", ");
+                }
+
+                s.push('}');
+
+                write!(f, "{s}")
             }
-
-            s.push(']');
-
-            write!(f, "{s}")
+            Value::Fn(_) => write!(f, "Function"),
+            Value::Null => write!(f, "Null"),
         }
-        Value::Object(obj) => {
-            let mut s = String::new();
-
-            s.push('{');
-
-            for (key, value) in obj.iter() {
-                s.push_str(key);
-
-                s.push_str(": ");
-
-                s.push_str(format!("{value}").as_str());
-
-                s.push_str(", ");
-            }
-
-            s.push('}');
-
-            write!(f, "{s}")
-        }
-        Value::Fn(_) => write!(f, "Function"),
-        Value::Null => write!(f, "Null"),
-    }
     }
 }
 
-impl std::fmt::Debug for GcValue{
+impl std::fmt::Debug for GcValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(self, f)
     }

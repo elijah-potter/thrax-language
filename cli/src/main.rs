@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use ast::Program;
 use clap::{Parser, Subcommand};
-use interpreter::{Context, Returnable};
+use interpreter::{Context, BlockExit};
 use parser::{lex_string, parse_tokens};
 
 #[derive(Parser, Debug)]
@@ -31,7 +31,7 @@ fn main() {
 
             match context.eval_program(&ast) {
                 Err(err) => println!("{:#?}", err),
-                Ok(Returnable::Returned(Some(_v))) => {}
+                Ok(BlockExit::Returned(Some(_v))) => {}
                 _ => (),
             }
         }

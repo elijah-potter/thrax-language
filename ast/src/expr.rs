@@ -31,7 +31,7 @@ pub enum BinaryOpKind {
     GreaterThan,
     LessThan,
     Equals,
-    Pow
+    Pow,
 }
 
 #[derive(Debug, Is, Clone, Copy)]

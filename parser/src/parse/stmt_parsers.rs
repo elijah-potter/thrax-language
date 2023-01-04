@@ -1,4 +1,4 @@
-use ast::{FnDecl, FnReturn, Stmt, VarAssign, VarDecl};
+use ast::{BlockExit, FnDecl, Stmt, VarAssign, VarDecl};
 
 use super::common_parsers::{parse_prop_ident_list, FoundPropIdentList};
 use super::expr_parsers::parse_expr;
@@ -37,6 +37,7 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<FoundStmt, Error> {
         parse_while_loop,
         parse_if_else,
         parse_return,
+        parse_break_continue,
         parse_expr_stmt,
     ];
 
@@ -153,8 +154,26 @@ fn parse_return(tokens: &[Token]) -> Result<FoundStmt, Error> {
     };
 
     Ok(FoundStmt {
-        stmt: Stmt::FnReturn(FnReturn { value: expr }),
+        stmt: Stmt::BlockExit(BlockExit::FnReturn(expr)),
         next_index: final_semi + 1,
+    })
+}
+
+/// Parse either a `break` or a `continue`
+fn parse_break_continue(tokens: &[Token]) -> Result<FoundStmt, Error> {
+    tokens.get_token_kind(1, ShallowTokenKind::Semicolon)?;
+
+    if let Ok(found) = tokens.get_token_kind(0, ShallowTokenKind::Break) {
+        return Ok(FoundStmt {
+            stmt: Stmt::BlockExit(BlockExit::Break),
+            next_index: 2,
+        });
+    }
+
+    tokens.get_token_kind(0, ShallowTokenKind::Continue)?;
+    Ok(FoundStmt {
+        stmt: Stmt::BlockExit(BlockExit::Continue),
+        next_index: 2,
     })
 }
 
