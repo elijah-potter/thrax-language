@@ -209,6 +209,10 @@ impl Value {
         Number => |a, b| Value::Bool(a > b)
     );
 
+    impl_op!(Pow,
+        Number => |a: &f64, b: &f64| Value::Number(a.powf(*b))
+    );
+
     impl_op!(LessThan,
         Number => |a, b| Value::Bool(a < b)
     );
@@ -227,6 +231,7 @@ impl Value {
             ast::BinaryOpKind::Divide => self.divide(other),
             ast::BinaryOpKind::GreaterThan => self.greater_than(other),
             ast::BinaryOpKind::LessThan => self.less_than(other),
+            ast::BinaryOpKind::Pow => self.pow(other),
             ast::BinaryOpKind::Equals => self.equals(other),
         }
     }

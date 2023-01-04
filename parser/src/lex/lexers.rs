@@ -216,6 +216,7 @@ lex_chars_to! {
     ";" => Semicolon,
     "+" => Plus,
     "-" => Minus,
+    "**" => DoubleAsterisk,
     "*" => Asterisk,
     "/" => ForwardSlash,
     "true" => True,

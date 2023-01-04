@@ -56,6 +56,7 @@ impl TokenKind {
             TokenKind::ForwardSlash => Some(BinaryOpKind::Divide),
             TokenKind::DoubleEquals => Some(BinaryOpKind::Equals),
             TokenKind::GreaterThan => Some(BinaryOpKind::GreaterThan),
+            TokenKind::DoubleAsterisk => Some(BinaryOpKind::Pow),
             TokenKind::LessThan => Some(BinaryOpKind::LessThan),
             _ => None,
         }
@@ -101,6 +102,7 @@ define_token_types! {
     Plus,
     Minus,
     Asterisk,
+    DoubleAsterisk,
     ForwardSlash,
     True,
     False,

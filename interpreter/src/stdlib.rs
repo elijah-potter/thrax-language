@@ -1,6 +1,9 @@
+use std::time::{UNIX_EPOCH, SystemTime};
+
 use crate::{Context, Error, ShallowValue, Value};
 
 pub fn add_stdlib(context: &mut Context) {
+    
     context.add_native_function("println".to_string(), |context, args| {
         for arg in args {
             print!("{}", value_to_string(context, &arg.borrow()));
@@ -8,6 +11,23 @@ pub fn add_stdlib(context: &mut Context) {
         println!();
         Ok((Value::Null).into_gc())
     });
+
+    context.add_native_function("print".to_string(), |context, args| {
+        for arg in args {
+            print!("{}", value_to_string(context, &arg.borrow()));
+        }
+        Ok(Value::Null.into_gc())
+    });
+
+    context.add_native_function("timestamp".to_string(), |context, args|{
+        let time_in_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+
+        Ok(Value::Number(time_in_ms as f64).into_gc())
+    });
+
     context.add_native_function("push".to_string(), |_context, args| {
         if args.len() < 2 {
             return Err(Error::IncorrectArgumentCount(2, args.len()));
