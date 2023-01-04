@@ -1,3 +1,5 @@
+// This is a really slow implementation of fib.
+
 fn fib(n) {
   if (n < 2) {
     return n;
@@ -8,7 +10,7 @@ fn fib(n) {
 
 let results = [];
 
-let i = 0;
+let i = /* this is a block comment */ 0;
 let up_to = 28;
 
 while (i < up_to){

@@ -15,7 +15,7 @@ pub fn lex_to_end(source: &[char]) -> Result<Vec<Token>, Error> {
     let mut tokens = Vec::new();
 
     loop {
-        cursor += lex_whitespace(&source[cursor..]);
+        cursor += lex_ignorables(&source[cursor..]);
 
         if cursor == source.len() {
             return Ok(tokens);
@@ -46,6 +46,23 @@ pub fn lex_token(source: &[char]) -> Option<FoundToken> {
     None
 }
 
+/// Find the first token _after_ all ignorables, including whitespace and comments
+pub fn lex_ignorables(source: &[char]) -> usize{
+    let mut cursor = 0;
+
+    while {
+        let last_cursor = cursor;
+
+        cursor += lex_whitespace(&source[cursor..]);
+        cursor += lex_comments(&source[cursor..]);
+
+        last_cursor != cursor
+    }{
+    }
+
+    cursor
+}
+
 /// Find the first token _after_ whitespace.
 pub fn lex_whitespace(source: &[char]) -> usize {
     for (index, c) in source.iter().enumerate() {
@@ -55,6 +72,40 @@ pub fn lex_whitespace(source: &[char]) -> usize {
     }
 
     source.len()
+}
+
+///  Find the first token _after_ any comment.
+pub fn lex_comments(source: &[char]) -> usize{
+    let i = lex_line_comment(source);
+    lex_block_comment(&source[i..]) + i
+}
+
+/// Find the first token _after_ a line comment.
+pub fn lex_line_comment(source: &[char]) -> usize{
+    if let (Some('/'), Some('/')) = (source.get(0), source.get(1)){
+        source.iter().enumerate().find_map(|(index, v)|  (*v == '\n').then_some(index)).unwrap_or(source.len())
+    }else{
+        0
+    }
+}
+
+/// Find the first token _after_ a block comment.
+pub fn lex_block_comment(source: &[char]) -> usize{
+    if let (Some('/'), Some('*')) = (source.get(0), source.get(1)){
+        let mut i = source.iter().enumerate().peekable();
+
+        while let Some((index, c)) = i.next(){
+            let c2 = i.peek();
+
+            if let ('*', Some((_,'/'))) = (c, c2){
+               return index + 2;
+            }
+        }
+
+        source.len()
+    }else{
+        0
+    }
 }
 
 pub fn lex_number(source: &[char]) -> Option<FoundToken> {
