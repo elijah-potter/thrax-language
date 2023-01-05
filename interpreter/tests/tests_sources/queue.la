@@ -1,0 +1,18 @@
+let queue = [8, 2, 32, 64];
+
+// Add items to the front
+unshift(queue, 2 ** 16);
+
+while (len(queue) > 0){
+  // You can take items off the front of the array
+  let item = shift(queue);
+
+  if (item > 1){
+    // .. and push items onto the back
+    push(queue, item / 2);
+  }
+
+  println(item);
+}
+
+return queue;

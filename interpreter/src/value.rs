@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fmt::Display;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -88,7 +88,7 @@ impl Display for GcValue {
                     }
                 }
 
-                if let Some(item) = arr.last() {
+                if let Some(item) = arr.iter().last() {
                     s.push_str(format!("{item}").as_str())
                 }
 
@@ -137,7 +137,7 @@ define_value_types! {
     Number(f64),
     String(String),
     Bool(bool),
-    Array(Vec<GcValue>),
+    Array(VecDeque<GcValue>),
     Object(HashMap<String, GcValue>),
     Fn(Rc<Fn>),
     Null
@@ -204,7 +204,7 @@ impl Value {
     );
 
     impl_op!(Divide,
-        Number => |a, b| Value::Number(a * b)
+        Number => |a, b| Value::Number(a / b)
     );
 
     impl_op!(GreaterThan,

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 
 use ast::{
@@ -242,10 +242,10 @@ impl Context {
     }
 
     fn eval_array_lit(&mut self, arr: &[Expr]) -> Result<GcValue, Error> {
-        let mut results = Vec::with_capacity(arr.len());
+        let mut results = VecDeque::with_capacity(arr.len());
         for expr in arr.iter() {
             let result = self.eval_expr(expr)?;
-            results.push(result);
+            results.push_back(result);
         }
         Ok((Value::Array(results)).into_gc())
     }
