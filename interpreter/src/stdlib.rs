@@ -63,7 +63,7 @@ pub fn add_stdlib(context: &mut Context) {
         Ok(arr.pop_back().unwrap_or_else(|| Value::Null.into_gc()))
     });
 
-        context.add_native_function("unshift".to_string(), |_context, args| {
+    context.add_native_function("unshift".to_string(), |_context, args| {
         if args.len() < 2 {
             return Err(Error::IncorrectArgumentCount(2, args.len()));
         }
@@ -82,7 +82,6 @@ pub fn add_stdlib(context: &mut Context) {
 
         Ok((Value::Null).into_gc())
     });
-
 
     context.add_native_function("shift".to_string(), |_context, args| {
         if args.is_empty() {
@@ -108,12 +107,12 @@ pub fn add_stdlib(context: &mut Context) {
         let mut args_iter = args.iter();
 
         let mut first = (*args_iter.next().unwrap()).borrow_mut();
-        
-        let len = match &mut *first{
+
+        let len = match &mut *first {
             Value::String(s) => s.len(),
             Value::Array(a) => a.len(),
             Value::Object(o) => o.len(),
-            _ => return Err(Error::CannotIndexType(first.as_shallow()))
+            _ => return Err(Error::CannotIndexType(first.as_shallow())),
         };
 
         Ok(Value::Number(len as f64).into_gc())

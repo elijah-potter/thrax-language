@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use ast::Program;
 use clap::{Parser, Subcommand};
-use interpreter::{Context, BlockExit};
+use interpreter::{BlockExit, Context};
 use parser::{lex_string, parse_tokens};
 
 #[derive(Parser, Debug)]

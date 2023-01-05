@@ -70,6 +70,17 @@ impl GcValue {
     pub fn borrow_mut(&self) -> GcCellRefMut<'_, Value> {
         self.inner.borrow_mut()
     }
+
+    /// For when you want to pass a value either by referance or by value depending on it's type.
+    pub fn shallow_copy(&self) -> Self {
+        match &*self.borrow() {
+            Value::Number(n) => Value::Number(*n).into_gc(),
+            Value::String(s) => Value::String(s.clone()).into_gc(),
+            Value::Bool(b) => Value::Bool(*b).into_gc(),
+            Value::Null => Value::Null.into_gc(),
+            _ => self.clone(),
+        }
+    }
 }
 
 impl Display for GcValue {

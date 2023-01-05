@@ -1,4 +1,4 @@
-use interpreter::{Context, BlockExit};
+use interpreter::{BlockExit, Context};
 
 macro_rules! create_test {
     ($filename:ident, $e:pat) => {

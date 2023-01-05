@@ -89,7 +89,7 @@ impl Context {
             return Err(Error::Redeclaration(var_decl.ident.clone()));
         };
 
-        let initialized = self.eval_expr(&var_decl.initializer)?;
+        let initialized = self.eval_expr(&var_decl.initializer)?.shallow_copy();
 
         self.stack.push_value(var_decl.ident.clone(), initialized);
 
@@ -97,7 +97,7 @@ impl Context {
     }
 
     fn eval_var_assign(&mut self, var_assign: &VarAssign) -> Result<(), Error> {
-        let new_value = self.eval_expr(&var_assign.value)?;
+        let new_value = self.eval_expr(&var_assign.value)?.shallow_copy();
         let new_value = new_value.borrow();
 
         let value = self.eval_expr(&var_assign.to)?;
@@ -146,10 +146,10 @@ impl Context {
 
             self.stack.pop_frame();
 
-             match res{
+            match res {
                 BlockExit::Returned(r) => return Ok(BlockExit::Returned(r)),
                 BlockExit::Break => return Ok(BlockExit::Completed),
-                _ => ()
+                _ => (),
             }
         }
 
@@ -279,7 +279,7 @@ impl Context {
 
         for arg in &fn_call.args {
             let result = self.eval_expr(arg)?;
-            args.push(result);
+            args.push(result.shallow_copy());
         }
 
         let (fn_def, definition_index) = {
