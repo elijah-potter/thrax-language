@@ -53,7 +53,7 @@ pub fn parse_expr_list(
         let current = &tokens[current_start..closing_index - d];
 
         if current.is_empty() {
-            return Err(Error::no_valid_expr(current_start));
+            return Err(Error::no_valid_expr(current_start)).map_err(Error::unrecoverable);
         }
 
         if d != 0 && tokens.get_token_kind(closing_index - d, separator).is_err() {
@@ -70,7 +70,17 @@ pub fn parse_expr_list(
                 current_start += current.len() + 1;
                 d = 0;
             }
-            Err(_) => d += 1,
+            Err(err) => {
+                if let Error {
+                    is_recoverable: true,
+                    ..
+                } = err
+                {
+                    d += 1
+                } else {
+                    return Err(err);
+                }
+            }
         }
     }
 
@@ -80,8 +90,7 @@ pub fn parse_expr_list(
     })
 }
 
-/// Given "(a + b)", should return `[a, b]`
-/// TODO: Use above function
+/// Parses the arguments for a function call
 pub fn parse_prop_ident_list(tokens: &[Token]) -> Result<FoundPropIdentList, Error> {
     let FoundExprList { items, next_index } = parse_expr_list(
         tokens,
@@ -100,7 +109,8 @@ pub fn parse_prop_ident_list(tokens: &[Token]) -> Result<FoundPropIdentList, Err
                 item.found_at,
                 ShallowTokenKind::Ident,
                 Some(tokens[item.found_at].clone()),
-            ));
+            )
+            .unrecoverable());
         }
     }
 

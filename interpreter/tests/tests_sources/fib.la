@@ -1,5 +1,5 @@
 // This is a really slow implementation of fib.
-// It is mainly for testing the speed of the scripting engine.
+// It can be used for testing the speed of the scripting engine by increased the value of `up_to`.
 // Inspired by a similar script in Rhai's examples
 
 fn fib(n) {
@@ -13,7 +13,7 @@ fn fib(n) {
 let results = [];
 
 let i = /* this is a block comment */ 0;
-let up_to = 28;
+let up_to = 18;
 
 while (i < up_to){
   let c = fib(i);

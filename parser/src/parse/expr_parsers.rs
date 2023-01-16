@@ -23,7 +23,13 @@ pub fn parse_expr(tokens: &[Token]) -> Result<Expr, Error> {
     for parser in parsers {
         match parser(tokens) {
             Ok(fe) => return Ok(fe),
-            Err(err) => last_failure = Some(err),
+            Err(err) => {
+                if !err.is_recoverable {
+                    return Err(err);
+                } else {
+                    last_failure = Some(err);
+                }
+            }
         }
     }
 
@@ -98,7 +104,7 @@ fn parse_fn_call(tokens: &[Token]) -> Result<Expr, Error> {
         ShallowTokenKind::LeftParen,
         ShallowTokenKind::RightParen,
     )
-    .map_err(|err| err.relative_to(1))?;
+    .map_err(|err| err.offset(1))?;
 
     if found_list.next_index + 1 != tokens.len() {
         return Err(Error::failed_to_consume(found_list.next_index));
@@ -118,14 +124,14 @@ fn parse_member(tokens: &[Token]) -> Result<Expr, Error> {
             ShallowTokenKind::LeftBracket,
             ShallowTokenKind::RightBracket,
         )
-        .map_err(|err| err.relative_to(open))?
+        .map_err(|err| err.offset(open))?
         + open;
 
     if close < tokens.len() - 1 {
         return Err(Error::failed_to_consume(close));
     }
 
-    let child = parse_expr(&tokens[open + 1..close]).map_err(|err| err.relative_to(open + 1))?;
+    let child = parse_expr(&tokens[open + 1..close]).map_err(|err| err.offset(open + 1))?;
     let parent = parse_expr(&tokens[0..open])?;
 
     Ok(Expr::Member(Member {

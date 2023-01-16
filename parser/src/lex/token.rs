@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use ast::{AssignOpKind, BinaryOpKind};
 use is_macro::Is;
 
@@ -38,11 +40,35 @@ macro_rules! define_token_types {
             }
         }
 
+        impl Display for TokenKind{
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    $(
+                        Self::$kind$((::paste::paste!{[<_$contains:snake>]}))? => {
+                            write!(f, "{}", stringify!($kind))?;
+                            $(write!(f, ": {}", ::paste::paste!{[<_$contains:snake>]})?;)?
+                            Ok(())
+                        },
+                    )*
+                }
+            }
+        }
+
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Is)]
         pub enum ShallowTokenKind{
             $(
                 $kind,
             )*
+        }
+
+        impl Display for ShallowTokenKind{
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    $(
+                        Self::$kind => write!(f, stringify!($kind)),
+                    )*
+                }
+            }
         }
     };
 }

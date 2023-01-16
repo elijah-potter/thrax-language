@@ -2,7 +2,7 @@
 let time = timestamp();
 
 // Similar to Python, `a ** b` raises a to the power of b
-let i = 10 ** 6;
+let i = 10 ** 5;
 
 while (i > 0){
   i -= 1;

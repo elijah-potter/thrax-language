@@ -19,7 +19,7 @@ pub fn parse_stmt_list(tokens: &[Token]) -> Result<Vec<Stmt>, Error> {
 
     while current_index < tokens.len() {
         let FoundStmt { stmt, next_index } =
-            parse_stmt(&tokens[current_index..]).map_err(|err| err.relative_to(current_index))?;
+            parse_stmt(&tokens[current_index..]).map_err(|err| err.offset(current_index))?;
 
         current_index += next_index;
         stmts.push(stmt);
@@ -46,7 +46,13 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<FoundStmt, Error> {
     for parser in parsers {
         match parser(tokens) {
             Ok(fe) => return Ok(fe),
-            Err(err) => last_failure = Some(err),
+            Err(err) => {
+                if !err.is_recoverable {
+                    return Err(err);
+                } else {
+                    last_failure = Some(err);
+                }
+            }
         }
     }
 
@@ -56,13 +62,20 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<FoundStmt, Error> {
 fn parse_var_decl(tokens: &[Token]) -> Result<FoundStmt, Error> {
     tokens.get_token_kind(0, ShallowTokenKind::Let)?;
 
-    let identifier = tokens.get_token_kind(1, ShallowTokenKind::Ident)?;
+    let identifier = tokens
+        .get_token_kind(1, ShallowTokenKind::Ident)
+        .map_err(Error::unrecoverable)?;
 
-    tokens.get_token_kind(2, ShallowTokenKind::Equals)?;
+    tokens
+        .get_token_kind(2, ShallowTokenKind::Equals)
+        .map_err(Error::unrecoverable)?;
 
-    let semi_location = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
+    let semi_location = tokens
+        .locate_first(3, ShallowTokenKind::Semicolon)
+        .map_err(Error::unrecoverable)?;
 
-    let expr = parse_expr(&tokens[3..semi_location]).map_err(|err| err.relative_to(3))?;
+    let expr =
+        parse_expr(&tokens[3..semi_location]).map_err(|err| err.offset(3).unrecoverable())?;
 
     Ok(FoundStmt {
         stmt: Stmt::VarDecl(VarDecl {
@@ -76,12 +89,12 @@ fn parse_var_decl(tokens: &[Token]) -> Result<FoundStmt, Error> {
 fn parse_var_assign(tokens: &[Token]) -> Result<FoundStmt, Error> {
     let LocatedAssignOp { op, location } = tokens.locate_first_assign_op(1)?;
 
-    let to = parse_expr(&tokens[0..location])?;
-
     let semi_location = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
 
-    let value = parse_expr(&tokens[location + 1..semi_location])
-        .map_err(|err| err.relative_to(location + 1))?;
+    let to = parse_expr(&tokens[0..location])?;
+
+    let value =
+        parse_expr(&tokens[location + 1..semi_location]).map_err(|err| err.offset(location + 1))?;
 
     Ok(FoundStmt {
         stmt: Stmt::VarAssign(VarAssign { to, value, op }),
@@ -92,17 +105,20 @@ fn parse_var_assign(tokens: &[Token]) -> Result<FoundStmt, Error> {
 fn parse_fn_decl(tokens: &[Token]) -> Result<FoundStmt, Error> {
     tokens.get_token_kind(0, ShallowTokenKind::Fn)?;
 
-    let identifier = tokens.get_token_kind(1, ShallowTokenKind::Ident)?;
+    let identifier = tokens
+        .get_token_kind(1, ShallowTokenKind::Ident)
+        .map_err(Error::unrecoverable)?;
 
     let FoundPropIdentList {
         prop_idents,
         next_index,
-    } = parse_prop_ident_list(&tokens[2..]).map_err(|err| err.relative_to(2))?;
+    } = parse_prop_ident_list(&tokens[2..]).map_err(|err| err.offset(2).unrecoverable())?;
 
     let FoundBody {
         body,
         next_index: after_body,
-    } = parse_body(&tokens[next_index + 2..]).map_err(|err| err.relative_to(next_index + 2))?;
+    } = parse_body(&tokens[next_index + 2..])
+        .map_err(|err| err.offset(next_index + 2).unrecoverable())?;
 
     Ok(FoundStmt {
         stmt: Stmt::FnDecl(FnDecl {
@@ -119,16 +135,17 @@ fn parse_while_loop(tokens: &[Token]) -> Result<FoundStmt, Error> {
 
     let closing_paren_index = tokens[1..]
         .locate_last_matched_right(ShallowTokenKind::LeftParen, ShallowTokenKind::RightParen)
-        .map_err(|err| err.relative_to(1))?
+        .map_err(|err| err.offset(1).unrecoverable())?
         + 1;
 
-    let expr = parse_expr(&tokens[2..closing_paren_index]).map_err(|err| err.relative_to(2))?;
+    let expr =
+        parse_expr(&tokens[2..closing_paren_index]).map_err(|err| err.offset(2).unrecoverable())?;
 
     let FoundBody {
         body,
         next_index: after_body,
     } = parse_body(&tokens[closing_paren_index + 1..])
-        .map_err(|err| err.relative_to(closing_paren_index + 1))?;
+        .map_err(|err| err.offset(closing_paren_index + 1).unrecoverable())?;
 
     Ok(FoundStmt {
         stmt: Stmt::WhileLoop(ast::WhileLoop {
@@ -142,15 +159,14 @@ fn parse_while_loop(tokens: &[Token]) -> Result<FoundStmt, Error> {
 fn parse_return(tokens: &[Token]) -> Result<FoundStmt, Error> {
     tokens.get_token_kind(0, ShallowTokenKind::Return)?;
 
-    let final_semi = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
+    let final_semi = tokens
+        .locate_first(0, ShallowTokenKind::Semicolon)
+        .map_err(Error::unrecoverable)?;
 
     let expr = if final_semi == 1 {
         None
     } else {
-        Some(
-            super::expr_parsers::parse_expr(&tokens[1..final_semi])
-                .map_err(|err| err.relative_to(1))?,
-        )
+        Some(parse_expr(&tokens[1..final_semi]).map_err(|err| err.offset(1).unrecoverable())?)
     };
 
     Ok(FoundStmt {
@@ -163,7 +179,7 @@ fn parse_return(tokens: &[Token]) -> Result<FoundStmt, Error> {
 fn parse_break_continue(tokens: &[Token]) -> Result<FoundStmt, Error> {
     tokens.get_token_kind(1, ShallowTokenKind::Semicolon)?;
 
-    if let Ok(found) = tokens.get_token_kind(0, ShallowTokenKind::Break) {
+    if let Ok(_found) = tokens.get_token_kind(0, ShallowTokenKind::Break) {
         return Ok(FoundStmt {
             stmt: Stmt::BlockExit(BlockExit::Break),
             next_index: 2,
@@ -182,17 +198,17 @@ fn parse_if_else(tokens: &[Token]) -> Result<FoundStmt, Error> {
 
     let closing_paren_index = tokens[1..]
         .locate_last_matched_right(ShallowTokenKind::LeftParen, ShallowTokenKind::RightParen)
-        .map_err(|err| err.relative_to(1))?
+        .map_err(|err| err.offset(1).unrecoverable())?
         + 1;
 
     let condition =
-        parse_expr(&tokens[2..closing_paren_index]).map_err(|err| err.relative_to(2))?;
+        parse_expr(&tokens[2..closing_paren_index]).map_err(|err| err.offset(2).unrecoverable())?;
 
     let FoundBody {
         body: true_branch,
         next_index: after_body,
     } = parse_body(&tokens[closing_paren_index + 1..])
-        .map_err(|err| err.relative_to(closing_paren_index + 1))?;
+        .map_err(|err| err.offset(closing_paren_index + 1).unrecoverable())?;
 
     let after_body = after_body + closing_paren_index + 1;
 
@@ -221,7 +237,7 @@ fn parse_if_else(tokens: &[Token]) -> Result<FoundStmt, Error> {
                 body: else_branch,
                 next_index: after_second_body,
             } = parse_body(&tokens[after_body + 1..])
-                .map_err(|err| err.relative_to(after_body + 1))?;
+                .map_err(|err| err.offset(after_body + 1).unrecoverable())?;
             Ok(FoundStmt {
                 stmt: Stmt::IfElse(ast::IfElse {
                     condition,
@@ -246,7 +262,7 @@ fn parse_if_else(tokens: &[Token]) -> Result<FoundStmt, Error> {
 fn parse_expr_stmt(tokens: &[Token]) -> Result<FoundStmt, Error> {
     let final_semi = tokens.locate_first(0, ShallowTokenKind::Semicolon)?;
 
-    let expr = super::expr_parsers::parse_expr(&tokens[..final_semi])?;
+    let expr = parse_expr(&tokens[..final_semi]).map_err(Error::unrecoverable)?;
 
     Ok(FoundStmt {
         stmt: Stmt::Expr(expr),
@@ -263,8 +279,8 @@ fn parse_body(tokens: &[Token]) -> Result<FoundBody, Error> {
     let closing_brace_index = tokens
         .locate_last_matched_right(ShallowTokenKind::LeftBrace, ShallowTokenKind::RightBrace)?;
 
-    let body =
-        parse_stmt_list(&tokens[1..closing_brace_index]).map_err(|err| err.relative_to(1))?;
+    let body = parse_stmt_list(&tokens[1..closing_brace_index])
+        .map_err(|err| err.offset(1).unrecoverable())?;
 
     Ok(FoundBody {
         body,

@@ -95,7 +95,7 @@ impl Display for GcValue {
 
                 if arr.len() > 1 {
                     for item in arr.iter().take(arr.len() - 1) {
-                        s.push_str(format!("{item},").as_str())
+                        s.push_str(format!("{item}, ").as_str())
                     }
                 }
 

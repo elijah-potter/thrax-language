@@ -27,3 +27,4 @@ create_test!(timing, BlockExit::Completed);
 create_test!(break_continue, BlockExit::Returned(Some(_)));
 create_test!(stack, BlockExit::Returned(Some(_)));
 create_test!(queue, BlockExit::Returned(Some(_)));
+create_test!(primes, BlockExit::Returned(Some(_)));

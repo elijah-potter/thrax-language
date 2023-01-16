@@ -1,0 +1,46 @@
+// Implementation of the Seive of Eratosthenes
+
+fn array_filled_with(array_size, with){
+  let arr = [];
+
+  while (len(arr) < array_size){
+    push(arr, with);
+  }
+
+  return arr;
+}
+
+// Finds all primes from 2..=n-1
+fn primes_up_to(n){
+  let i = 2;  
+  let a = array_filled_with(n, true);
+
+  while (i < n){
+    if (a[i]){
+      let j = i * 2;
+
+      while (j < n){
+        a[j] = false;        
+
+        j += i;
+      }
+    } 
+
+    i += 1;
+  }
+
+  let primes = [];  
+  let prime_n = 2;
+
+  while(prime_n < len(a)){
+    if (a[prime_n]){
+      push(primes, prime_n);
+    }
+
+    prime_n += 1;
+  }
+
+  return primes;
+}
+
+return primes_up_to(300);
