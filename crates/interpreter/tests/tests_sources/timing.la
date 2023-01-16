@@ -8,4 +8,4 @@ while (i > 0){
   i -= 1;
 }
 
-println(timestamp() - time);
+return timestamp() - time;

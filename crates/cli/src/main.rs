@@ -6,7 +6,7 @@ use ast::Program;
 use clap::{Parser, Subcommand};
 use crossterm::execute;
 use crossterm::style::{Color, Print, ResetColor, SetForegroundColor};
-use interpreter::{BlockExit, Context};
+use interpreter::{BlockExit, Context, Value};
 use parser::{lex_string, parse_tokens};
 
 #[derive(Parser, Debug)]
@@ -34,6 +34,7 @@ fn main() {
 
             let mut context = Context::new();
             context.add_stdlib();
+            add_io(&mut context);
 
             match context.eval_program(&ast) {
                 Err(err) => println!("{:#?}", err),
@@ -185,4 +186,21 @@ fn print_err(err: &str) {
         ResetColor
     )
     .unwrap();
+}
+
+fn add_io(context: &mut Context) {
+    context.add_native_function("println".to_string(), |_context, args| {
+        for arg in args {
+            print!("{}", arg);
+        }
+        println!();
+        Ok((Value::Null).into_gc())
+    });
+
+    context.add_native_function("print".to_string(), |_context, args| {
+        for arg in args {
+            print!("{}", arg);
+        }
+        Ok(Value::Null.into_gc())
+    });
 }

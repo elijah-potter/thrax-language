@@ -14,7 +14,5 @@ while (k < 10){
     i = i + 1;
   }
 
-  println(k);
-
   k = k + 1;
 }

@@ -9,7 +9,9 @@ pub enum Error {
     #[error("Assignment to an undeclared variable {0}")]
     Undeclared(String),
     /// Represent that a type is being used where another type should.
+    ///
     /// 0 => Should
+    ///
     /// 1 => Used
     #[error("Attempted to use a {1} as a {0}.")]
     TypeError(ShallowValue, ShallowValue),
@@ -20,7 +22,9 @@ pub enum Error {
     #[error("Attempted to access non-existant heap item {0}.")]
     UndefinedHeapAccess(usize),
     /// Represent that function is being supplied too many arguments.
+    ///
     /// 0 => # of args requested
+    ///
     /// 1 => # of args supplied
     #[error("Function requires {1} arguments, but was supplied {0}")]
     IncorrectArgumentCount(usize, usize),

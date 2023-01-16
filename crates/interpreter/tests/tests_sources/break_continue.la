@@ -11,9 +11,8 @@ while (true){
   continue;
 
   while(true){
-    println("IMPOSSIBLE, should have gone to next iteration of loop.");
+    // It should never reach this point, it should have continued to the next iteration of loop.
   }
 }
 
-println("Control flow did as expected!");
 return i;

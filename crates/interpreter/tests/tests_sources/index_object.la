@@ -6,6 +6,6 @@ let k = {
   }
 };
 
-println(k["t"]);
-println(k["sdf"]);
-println(k["rec"]);
+k["t"];
+k["sdf"];
+k["rec"];

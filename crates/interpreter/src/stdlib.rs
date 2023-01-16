@@ -3,21 +3,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::{Context, Error, ShallowValue, Value};
 
 pub fn add_stdlib(context: &mut Context) {
-    context.add_native_function("println".to_string(), |context, args| {
-        for arg in args {
-            print!("{}", value_to_string(context, &arg.borrow()));
-        }
-        println!();
-        Ok((Value::Null).into_gc())
-    });
-
-    context.add_native_function("print".to_string(), |context, args| {
-        for arg in args {
-            print!("{}", value_to_string(context, &arg.borrow()));
-        }
-        Ok(Value::Null.into_gc())
-    });
-
     context.add_native_function("timestamp".to_string(), |context, args| {
         let time_in_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -117,54 +102,4 @@ pub fn add_stdlib(context: &mut Context) {
 
         Ok(Value::Number(len as f64).into_gc())
     });
-}
-/// Convert a [Value] to a human readable [String]
-pub fn value_to_string(context: &Context, value: &Value) -> String {
-    // This is not elegant
-
-    match value {
-        Value::Number(n) => format!("{}", n),
-        Value::String(s) => s.to_string(),
-        Value::Bool(b) => format!("{}", b),
-        Value::Array(arr) => {
-            let mut s = String::new();
-            s.push('[');
-
-            if arr.len() > 1 {
-                for item in arr.iter().take(arr.len() - 1) {
-                    s.push_str(value_to_string(context, &item.borrow()).as_str());
-                    s.push_str(", ");
-                }
-            }
-
-            if let Some(item) = arr.iter().last() {
-                s.push_str(value_to_string(context, &item.borrow()).as_str());
-            }
-
-            s.push(']');
-
-            s
-        }
-        Value::Object(obj) => {
-            let mut s = String::new();
-
-            s.push('{');
-
-            for (key, value) in obj.iter() {
-                s.push_str(key);
-
-                s.push_str(": ");
-
-                s.push_str(value_to_string(context, &value.borrow()).as_str());
-
-                s.push_str(", ");
-            }
-
-            s.push('}');
-
-            s
-        }
-        Value::Fn(_) => "Function".to_string(),
-        Value::Null => "Null".to_string(),
-    }
 }

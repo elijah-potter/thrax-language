@@ -23,7 +23,7 @@ create_test!(empty_fn, BlockExit::Completed);
 create_test!(add_fns, BlockExit::Completed);
 create_test!(cyclic_arrays, BlockExit::Completed);
 create_test!(index_object, BlockExit::Completed);
-create_test!(timing, BlockExit::Completed);
+create_test!(timing, BlockExit::Returned(Some(_)));
 create_test!(break_continue, BlockExit::Returned(Some(_)));
 create_test!(stack, BlockExit::Returned(Some(_)));
 create_test!(queue, BlockExit::Returned(Some(_)));

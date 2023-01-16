@@ -4,6 +4,6 @@ let stack = [1, 3, 2, 6, 23];
 push(stack, "new item");
 
 // We can pop items off the end
-println(pop(stack));
+pop(stack);
 
 return pop(stack);

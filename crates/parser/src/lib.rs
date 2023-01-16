@@ -1,11 +1,11 @@
+#![doc = include_str!("../README.md")]
+
 mod lex;
 mod parse;
 
 use ast::Program;
 pub use lex::{Error as LexError, Token, TokenKind};
-pub use parse::{
-    parse_stmt_list as parse_tokens, Error as ParseError, ErrorKind as ParseErrorKind,
-};
+pub use parse::{Error as ParseError, ErrorKind as ParseErrorKind};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -15,12 +15,22 @@ pub enum Error {
     Parse(#[from] ParseError),
 }
 
+/// Completely lex a string into a series of tokens.
 pub fn lex_string(source: &str) -> Result<Vec<Token>, LexError> {
     let seperated: Vec<_> = source.chars().collect();
 
     lex::lex_to_end(&seperated)
 }
 
+/// Completely parse tokens into an AST.
+pub fn parse_tokens(tokens: &[Token]) -> Result<Program, ParseError> {
+    parse::parse_stmt_list(tokens)
+}
+
+/// Function that does both [`lex_string`] and [`parse_tokens`].
+///
+/// This is mosty likely what you want to use, unless there is some special circumstance that involves
+/// caching tokens.
 pub fn parse_string(source: &str) -> Result<Program, Error> {
     let tokens = lex_string(source)?;
     let program = parse::parse_stmt_list(&tokens)?;
