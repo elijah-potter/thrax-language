@@ -1,7 +1,7 @@
 [workspace]
 members = [
-  "ast",
-  "parser",
-  "interpreter",
-  "cli"
+  "crates/ast",
+  "crates/parser",
+  "crates/interpreter",
+  "crates/cli"
 ]
