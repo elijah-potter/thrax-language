@@ -8,7 +8,7 @@
   import { AceEditor } from "svelte-ace";
   import { FitAddon } from "xterm-addon-fit";
   import demoItems from "./demoItems";
-  import { write } from "@popperjs/core";
+  import {WebglAddon} from "xterm-addon-webgl"
 
   function getqsv(param) {
     try {
@@ -33,6 +33,7 @@
 
   let code = {inner: getqsv("code") ?? ""};
 
+  let webglAddon = new WebglAddon();
   let fitAddon = new FitAddon();
   let termDiv;
   let terminal;
@@ -46,6 +47,7 @@
   onMount(() => {
     terminal = new Terminal();
     terminal.loadAddon(fitAddon);
+    terminal.loadAddon(webglAddon)
     terminal.open(termDiv);
 
     fitAddon.fit();

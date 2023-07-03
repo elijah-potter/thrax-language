@@ -40,6 +40,7 @@
     "svelte-ace": "^1.0.21",
     "tailwind-merge": "^1.13.2",
     "xterm": "^5.2.1",
-    "xterm-addon-fit": "^0.7.0"
+    "xterm-addon-fit": "^0.7.0",
+    "xterm-addon-webgl": "^0.15.0"
   }
 }
