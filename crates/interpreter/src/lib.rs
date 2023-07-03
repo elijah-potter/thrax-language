@@ -10,4 +10,5 @@ mod value;
 pub use callable::{Callable, InterpretedFn, NativeFn};
 pub use context::{BlockExit, Context};
 pub use error::Error;
+pub use gc::GcCell;
 pub use value::{GcValue, ShallowValue, Value};

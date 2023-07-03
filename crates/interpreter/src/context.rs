@@ -7,14 +7,15 @@ use ast::{
     WhileLoop,
 };
 use gc::GcCell;
+use is_macro::Is;
 
 use crate::error::Error;
 use crate::stack::{FoundIdent, Stack};
 use crate::stdlib::add_stdlib;
 use crate::value::{GcValue, ShallowValue, Value};
-use crate::{InterpretedFn, NativeFn};
+use crate::{Callable, InterpretedFn, NativeFn};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Is)]
 pub enum BlockExit {
     Returned(Option<GcValue>),
     Break,
@@ -56,6 +57,11 @@ impl Context {
             ident.to_string(),
             Value::Callable(Rc::new(GcCell::new(native_fn))).into_gc(),
         )
+    }
+
+    pub fn add_callable(&mut self, ident: impl ToString, callable: Rc<GcCell<dyn Callable>>) {
+        self.stack
+            .push_value(ident.to_string(), Value::Callable(callable).into_gc())
     }
 
     /// Courtesey wrapper for [`crate::stdlib::add_stdlib`]

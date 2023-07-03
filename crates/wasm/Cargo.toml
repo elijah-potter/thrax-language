@@ -11,3 +11,5 @@ interpreter = { path = "../interpreter" }
 wasm-bindgen = "0.2.87"
 ast = { path = "../ast" }
 parser = { path = "../parser" }
+js-sys = "0.3.64"
+gc = { version = "0.4.1", features = ["derive"] }

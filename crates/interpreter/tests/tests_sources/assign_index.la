@@ -4,5 +4,6 @@ arr;
 arr[2];
 
 arr[2] = 23;
+arr[2] += 20;
 
 return arr;
