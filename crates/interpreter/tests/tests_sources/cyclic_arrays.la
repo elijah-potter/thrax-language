@@ -1,3 +1,5 @@
+// I honestly do not remember why I wrote this.
+// My best guess is that it is to test the GC
 let k = 0;
 
 while (k < 10){

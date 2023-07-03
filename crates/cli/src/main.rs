@@ -1,12 +1,13 @@
 use std::fs::read;
 use std::io::stderr;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use ast::Program;
 use clap::{Parser, Subcommand};
 use crossterm::execute;
 use crossterm::style::{Color, Print, ResetColor, SetForegroundColor};
-use interpreter::{BlockExit, Context, Value};
+use interpreter::{BlockExit, Context, NativeFn, Value};
 use parser::{lex_string, parse_tokens};
 
 #[derive(Parser, Debug)]
@@ -189,18 +190,24 @@ fn print_err(err: &str) {
 }
 
 fn add_io(context: &mut Context) {
-    context.add_native_function("println".to_string(), |_context, args| {
-        for arg in args {
-            print!("{}", arg);
-        }
-        println!();
-        Ok((Value::Null).into_gc())
-    });
+    context.add_native_fn(
+        "println".to_string(),
+        NativeFn(|_context, args| {
+            for arg in args {
+                print!("{}", arg);
+            }
+            println!();
+            Ok((Value::Null).into_gc())
+        }),
+    );
 
-    context.add_native_function("print".to_string(), |_context, args| {
-        for arg in args {
-            print!("{}", arg);
-        }
-        Ok(Value::Null.into_gc())
-    });
+    context.add_native_fn(
+        "print".to_string(),
+        NativeFn(|_context, args| {
+            for arg in args {
+                print!("{}", arg);
+            }
+            Ok(Value::Null.into_gc())
+        }),
+    );
 }

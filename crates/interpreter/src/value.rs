@@ -1,54 +1,65 @@
+use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Display;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use ast::{BinaryOpKind, Stmt};
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use ast::{BinaryOpKind, FnCall, Stmt};
+use gc::{unsafe_empty_trace, Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::error::Error;
-use crate::Context;
+use crate::{Callable, Context, NativeFn};
 
-/// [Value] is a dynamically typed nullable value.
-macro_rules! define_value_types {
-    ($inner:ty) => {
-        _
-    };
-    ($($kind:ident$(($contains:ty))?),*) => {
-        #[derive(Clone, Trace, Finalize)]
-        pub enum Value {
-            $(
-                $kind $(($contains))?,
-            )*
-        }
+#[derive(Clone, Trace, Finalize)]
+pub enum Value {
+    Number(f64),
+    String(String),
+    Bool(bool),
+    Array(VecDeque<GcValue>),
+    Object(HashMap<String, GcValue>),
+    Callable(Rc<GcCell<dyn Callable>>),
+    Null,
+}
 
-        impl Value {
-            #[must_use] pub fn as_shallow(&self) -> ShallowValue{
-                match self{
-                    $(
-                        Self::$kind $( (define_value_types!($contains)) )? => ShallowValue::$kind,
-                    )*
-                }
-            }
+impl Value {
+    pub fn as_shallow(&self) -> ShallowValue {
+        match self {
+            Value::Number(_) => ShallowValue::Number,
+            Value::String(_) => ShallowValue::String,
+            Value::Bool(_) => ShallowValue::Bool,
+            Value::Array(_) => ShallowValue::Array,
+            Value::Object(_) => ShallowValue::Object,
+            Value::Callable(_) => ShallowValue::Callable,
+            Value::Null => ShallowValue::Null,
         }
+    }
+}
 
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub enum ShallowValue{
-            $(
-                $kind,
-            )*
-        }
+#[derive(Debug, Clone, Copy)]
+pub enum ShallowValue {
+    Number,
+    String,
+    Bool,
+    Array,
+    Object,
+    Callable,
+    Null,
+}
 
-        impl Display for ShallowValue{
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                match self{
-                    $(
-                        Self::$kind => write!(f, stringify!($kind)),
-                    )*
-                }
-            }
-        }
-    };
+impl Display for ShallowValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let m = match self {
+            ShallowValue::Number => "Number",
+            ShallowValue::String => "String",
+            ShallowValue::Bool => "Bool",
+            ShallowValue::Array => "Array",
+            ShallowValue::Object => "Object",
+            ShallowValue::Callable => "Callable",
+            ShallowValue::Null => "Null",
+        };
+
+        write!(f, "{m}")
+    }
 }
 
 #[derive(Clone, Trace, Finalize)]
@@ -126,7 +137,7 @@ impl Display for GcValue {
 
                 write!(f, "{s}")
             }
-            Value::Fn(_) => write!(f, "Function"),
+            Value::Callable(_) => write!(f, "Function"),
             Value::Null => write!(f, "Null"),
         }
     }
@@ -142,31 +153,6 @@ impl Value {
     pub fn into_gc(self) -> GcValue {
         GcValue::new(self)
     }
-}
-
-define_value_types! {
-    Number(f64),
-    String(String),
-    Bool(bool),
-    Array(VecDeque<GcValue>),
-    Object(HashMap<String, GcValue>),
-    Fn(Rc<Fn>),
-    Null
-}
-
-pub type NativeFn = fn(&mut Context, &[GcValue]) -> Result<GcValue, Error>;
-
-#[derive(Clone, Trace, Finalize)]
-pub enum Fn {
-    Native(#[unsafe_ignore_trace] NativeFn),
-    /// This is only expressly different from `ast::FnDecl` in that it does not include an ident.
-    /// TODO: Store stack frame alongside function
-    Interpreted {
-        #[unsafe_ignore_trace]
-        prop_idents: Vec<String>,
-        #[unsafe_ignore_trace]
-        body: Vec<Stmt>,
-    },
 }
 
 macro_rules! impl_op {
@@ -253,5 +239,11 @@ impl Value {
 impl From<String> for Value {
     fn from(v: String) -> Self {
         Self::String(v)
+    }
+}
+
+impl From<Rc<GcCell<dyn Callable>>> for Value {
+    fn from(value: Rc<GcCell<dyn Callable>>) -> Self {
+        Value::Callable(value)
     }
 }

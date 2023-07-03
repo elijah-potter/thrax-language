@@ -1,17 +1,20 @@
 use std::collections::{HashMap, VecDeque};
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
 use ast::{
     AssignOpKind, BinaryOp, Expr, FnCall, FnDecl, Member, Program, Stmt, VarAssign, VarDecl,
     WhileLoop,
 };
+use gc::GcCell;
 
 use crate::error::Error;
 use crate::stack::{FoundIdent, Stack};
 use crate::stdlib::add_stdlib;
-use crate::value::{Fn, GcValue, NativeFn, ShallowValue, Value};
+use crate::value::{GcValue, ShallowValue, Value};
+use crate::{InterpretedFn, NativeFn};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum BlockExit {
     Returned(Option<GcValue>),
     Break,
@@ -19,9 +22,26 @@ pub enum BlockExit {
     Completed,
 }
 
+impl Display for BlockExit {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BlockExit::Returned(v) => write!(
+                f,
+                "Returned: {}",
+                v.as_ref()
+                    .map(|v| v.to_string())
+                    .unwrap_or("Nothing".to_string())
+            ),
+            BlockExit::Break => write!(f, "Break"),
+            BlockExit::Continue => write!(f, "Continue"),
+            BlockExit::Completed => write!(f, "Completed"),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Context {
-    stack: Stack<GcValue>,
+    pub stack: Stack<GcValue>,
 }
 
 impl Context {
@@ -31,14 +51,21 @@ impl Context {
         }
     }
 
-    pub fn add_native_function(&mut self, name: String, native_fn: NativeFn) {
-        self.stack
-            .push_value(name, Value::Fn(Rc::new(Fn::Native(native_fn))).into_gc());
+    pub fn add_native_fn(&mut self, ident: impl ToString, native_fn: NativeFn) {
+        self.stack.push_value(
+            ident.to_string(),
+            Value::Callable(Rc::new(GcCell::new(native_fn))).into_gc(),
+        )
     }
 
     /// Courtesey wrapper for [`crate::stdlib::add_stdlib`]
     pub fn add_stdlib(&mut self) {
         add_stdlib(self)
+    }
+
+    pub fn with_stdlib(mut self) -> Self {
+        self.add_stdlib();
+        self
     }
 
     pub fn eval_program(&mut self, program: &Program) -> Result<BlockExit, Error> {
@@ -84,6 +111,20 @@ impl Context {
         }
     }
 
+    pub fn eval_expr(&mut self, expr: &Expr) -> Result<GcValue, Error> {
+        match expr {
+            Expr::Ident(i) => self.find_with_ident(i).map(|v| v.value),
+            Expr::NumberLiteral(n) => Ok(Value::Number(*n).into_gc()),
+            Expr::StringLiteral(s) => Ok(Value::String(s.clone()).into_gc()),
+            Expr::BoolLiteral(b) => Ok(Value::Bool(*b).into_gc()),
+            Expr::ArrayLiteral(arr) => self.eval_array_lit(arr),
+            Expr::ObjectLiteral(obj) => self.eval_object_lit(obj),
+            Expr::BinaryOp(bin_op) => self.eval_binary_op(bin_op),
+            Expr::FnCall(f) => self.run_fn(f),
+            Expr::Member(m) => self.eval_member(m),
+        }
+    }
+
     fn eval_var_decl(&mut self, var_decl: &VarDecl) -> Result<(), Error> {
         let Err(_) = self.find_with_ident(&var_decl.ident) else {
             return Err(Error::Redeclaration(var_decl.ident.clone()));
@@ -124,10 +165,11 @@ impl Context {
 
         self.stack.push_value(
             fn_decl.ident.clone(),
-            Value::Fn(Rc::new(Fn::Interpreted {
-                prop_idents: fn_decl.prop_idents.clone(),
-                body: fn_decl.body.clone(),
-            }))
+            Value::Callable(Rc::new(GcCell::new(InterpretedFn::new(
+                self.stack.value_len(),
+                fn_decl.prop_idents.clone(),
+                fn_decl.body.clone(),
+            ))))
             .into_gc(),
         );
 
@@ -174,20 +216,6 @@ impl Context {
         self.stack.pop_frame();
 
         res
-    }
-
-    fn eval_expr(&mut self, expr: &Expr) -> Result<GcValue, Error> {
-        match expr {
-            Expr::Ident(i) => self.find_with_ident(i).map(|v| v.value),
-            Expr::NumberLiteral(n) => Ok(Value::Number(*n).into_gc()),
-            Expr::StringLiteral(s) => Ok(Value::String(s.clone()).into_gc()),
-            Expr::BoolLiteral(b) => Ok(Value::Bool(*b).into_gc()),
-            Expr::ArrayLiteral(arr) => self.eval_array_lit(arr),
-            Expr::ObjectLiteral(obj) => self.eval_object_lit(obj),
-            Expr::BinaryOp(bin_op) => self.eval_binary_op(bin_op),
-            Expr::FnCall(f) => self.run_fn(f),
-            Expr::Member(m) => self.eval_member(m),
-        }
     }
 
     fn eval_member(&mut self, member: &Member) -> Result<GcValue, Error> {
@@ -274,7 +302,7 @@ impl Context {
         Ok((arith_res).into_gc())
     }
 
-    pub fn run_fn(&mut self, fn_call: &FnCall) -> Result<GcValue, Error> {
+    fn run_fn(&mut self, fn_call: &FnCall) -> Result<GcValue, Error> {
         let mut args = Vec::with_capacity(fn_call.args.len());
 
         for arg in &fn_call.args {
@@ -282,53 +310,25 @@ impl Context {
             args.push(result.shallow_copy());
         }
 
-        let (fn_def, definition_index) = {
+        let fn_def = {
             let FoundIdent {
-                value: definition,
-                index: definition_index,
+                value: definition, ..
             } = self.find_with_ident(&fn_call.ident)?;
 
             let definition = definition.borrow();
 
-            let Value::Fn(df) = &*definition else{
-                        return Err(Error::TypeError(ShallowValue::Fn, definition.as_shallow()));
+            let Value::Callable(df) = &*definition else{
+                        return Err(Error::TypeError(ShallowValue::Callable, definition.as_shallow()));
                     };
 
-            (df.clone(), definition_index)
+            df.clone()
         };
 
-        match fn_def.as_ref() {
-            Fn::Native(native_fn) => native_fn(self, &args),
-            Fn::Interpreted { prop_idents, body } => {
-                let old = self.stack.pop_until_index(definition_index);
-
-                let mut new_scope = Vec::with_capacity(args.len());
-
-                if args.len() != prop_idents.len() {
-                    return Err(Error::IncorrectArgumentCount(prop_idents.len(), args.len()));
-                }
-
-                for (ident, value) in prop_idents.iter().zip(args.iter()) {
-                    new_scope.push((ident.clone(), value.clone()));
-                }
-                self.stack.push_frame(new_scope);
-
-                let res = self.eval_program(body)?;
-
-                self.stack.pop_frame();
-                // Replace old scopes
-                self.stack.push_popped_stack(old);
-
-                if let BlockExit::Returned(r) = res {
-                    return Ok(r.unwrap_or_else(|| (Value::Null).into_gc()));
-                }
-
-                Ok((Value::Null).into_gc())
-            }
-        }
+        let fn_def = fn_def.borrow();
+        fn_def.call(self, &args)
     }
 
-    pub fn find_with_ident(&self, ident: &str) -> Result<FoundIdent<GcValue>, Error> {
+    fn find_with_ident(&self, ident: &str) -> Result<FoundIdent<GcValue>, Error> {
         self.stack
             .find_with_ident(ident)
             .ok_or_else(|| Error::Undeclared(ident.to_string()))

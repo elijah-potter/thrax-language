@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use gc::{Finalize, Trace};
+
 pub struct FoundIdent<T> {
     pub value: T,
     pub index: usize,
@@ -11,7 +13,7 @@ pub struct PoppedStack<T> {
     frames: Vec<usize>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Trace, Finalize)]
 pub struct Stack<T>
 where
     T: Clone,
@@ -98,6 +100,15 @@ where
 
     pub fn iter_values(&'_ self) -> impl Iterator<Item = T> + '_ {
         self.values.iter().map(|(_, value)| value.clone())
+    }
+}
+
+impl<T> Default for Stack<T>
+where
+    T: Clone,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }
 

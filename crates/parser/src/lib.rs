@@ -42,6 +42,7 @@ pub fn parse_string(source: &str) -> Result<Program, Error> {
 mod test_utils {
     use crate::lex::{lex_to_end, Token};
 
+    /// Helper function to make tests more declarative.
     pub fn tokenize(source: &str) -> Vec<Token> {
         let chars: Vec<char> = source.chars().collect();
         lex_to_end(&chars).expect("Failed to tokenize.")

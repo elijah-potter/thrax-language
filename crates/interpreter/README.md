@@ -26,7 +26,7 @@ context.eval_program(&program).unwrap();
 You can add Rust functions to the interpreter [`Context`] with [`Context::add_native_function`].
 
 ```rust
-use interpreter::{Error, Context, GcValue};
+use interpreter::{Error, Context, GcValue, NativeFn};
 
 let mut context = Context::new();
 
@@ -42,7 +42,7 @@ let add_fn = |context: &mut Context, arguments: &[GcValue]| {
   Ok(a.add(&b)?.into_gc())
 };
 
-context.add_native_function("add".to_string(), add_fn);
+context.add_native_fn("add".to_string(), NativeFn(add_fn));
 ```
 
 ## Examples

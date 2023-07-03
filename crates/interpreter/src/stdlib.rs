@@ -1,105 +1,120 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    rc::Rc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
-use crate::{Context, Error, ShallowValue, Value};
+use gc::{GcCell, Trace};
+
+use crate::{Context, Error, GcValue, NativeFn, ShallowValue, Value};
 
 pub fn add_stdlib(context: &mut Context) {
-    context.add_native_function("timestamp".to_string(), |context, args| {
-        let time_in_ms = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
+    context.add_native_fn("timestamp".to_string(), NativeFn(timestamp));
 
-        Ok(Value::Number(time_in_ms as f64).into_gc())
-    });
+    context.add_native_fn("push".to_string(), NativeFn(push));
 
-    context.add_native_function("push".to_string(), |_context, args| {
-        if args.len() < 2 {
-            return Err(Error::IncorrectArgumentCount(2, args.len()));
-        }
+    context.add_native_fn("pop".to_string(), NativeFn(pop));
 
-        let mut args_iter = args.iter();
+    context.add_native_fn("unshift".to_string(), NativeFn(unshift));
 
-        let mut first = (*args_iter.next().unwrap()).borrow_mut();
+    context.add_native_fn("shift".to_string(), NativeFn(shift));
 
-        let Value::Array(arr) = &mut *first else{
-                return Err(Error::TypeError(ShallowValue::Array, first.as_shallow()));
+    context.add_native_fn("len".to_string(), NativeFn(len));
+}
+
+fn timestamp(_ctx: &mut Context, _args: &[GcValue]) -> Result<GcValue, Error> {
+    let time_in_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+
+    Ok(Value::Number(time_in_ms as f64).into_gc())
+}
+
+fn push(_ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
+    if args.len() < 2 {
+        return Err(Error::IncorrectArgumentCount(2, args.len()));
+    }
+
+    let mut args_iter = args.iter();
+
+    let mut first = (*args_iter.next().unwrap()).borrow_mut();
+
+    let Value::Array(arr) = &mut *first else{
+                return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
         };
 
-        for arg in args_iter {
-            arr.push_back(arg.clone())
-        }
+    for arg in args_iter {
+        arr.push_back(arg.clone())
+    }
 
-        Ok((Value::Null).into_gc())
-    });
+    Ok((Value::Null).into_gc())
+}
 
-    context.add_native_function("pop".to_string(), |_context, args| {
-        if args.is_empty() {
-            return Err(Error::IncorrectArgumentCount(1, args.len()));
-        }
+fn pop(_ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
+    if args.is_empty() {
+        return Err(Error::IncorrectArgumentCount(1, args.len()));
+    }
 
-        let mut args_iter = args.iter();
+    let mut args_iter = args.iter();
 
-        let mut first = (*args_iter.next().unwrap()).borrow_mut();
+    let mut first = (*args_iter.next().unwrap()).borrow_mut();
 
-        let Value::Array(arr) = &mut *first else{
-                return Err(Error::TypeError(ShallowValue::Array, first.as_shallow()));
+    let Value::Array(arr) = &mut *first else{
+                return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
         };
 
-        Ok(arr.pop_back().unwrap_or_else(|| Value::Null.into_gc()))
-    });
+    Ok(arr.pop_back().unwrap_or_else(|| Value::Null.into_gc()))
+}
+fn unshift(ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
+    if args.len() < 2 {
+        return Err(Error::IncorrectArgumentCount(2, args.len()));
+    }
 
-    context.add_native_function("unshift".to_string(), |_context, args| {
-        if args.len() < 2 {
-            return Err(Error::IncorrectArgumentCount(2, args.len()));
-        }
+    let mut args_iter = args.iter();
 
-        let mut args_iter = args.iter();
+    let mut first = (*args_iter.next().unwrap()).borrow_mut();
 
-        let mut first = (*args_iter.next().unwrap()).borrow_mut();
-
-        let Value::Array(arr) = &mut *first else{
-                return Err(Error::TypeError(ShallowValue::Array, first.as_shallow()));
+    let Value::Array(arr) = &mut *first else{
+                return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
         };
 
-        for arg in args_iter {
-            arr.push_front(arg.clone())
-        }
+    for arg in args_iter {
+        arr.push_front(arg.clone())
+    }
 
-        Ok((Value::Null).into_gc())
-    });
+    Ok((Value::Null).into_gc())
+}
+fn shift(ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
+    if args.is_empty() {
+        return Err(Error::IncorrectArgumentCount(1, args.len()));
+    }
 
-    context.add_native_function("shift".to_string(), |_context, args| {
-        if args.is_empty() {
-            return Err(Error::IncorrectArgumentCount(1, args.len()));
-        }
+    let mut args_iter = args.iter();
 
-        let mut args_iter = args.iter();
+    let mut first = (*args_iter.next().unwrap()).borrow_mut();
 
-        let mut first = (*args_iter.next().unwrap()).borrow_mut();
-
-        let Value::Array(arr) = &mut *first else{
-                return Err(Error::TypeError(ShallowValue::Array, first.as_shallow()));
+    let Value::Array(arr) = &mut *first else{
+                return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
         };
 
-        Ok(arr.pop_front().unwrap_or_else(|| Value::Null.into_gc()))
-    });
+    Ok(arr.pop_front().unwrap_or_else(|| Value::Null.into_gc()))
+}
 
-    context.add_native_function("len".to_string(), |_context, args| {
-        if args.is_empty() {
-            return Err(Error::IncorrectArgumentCount(1, args.len()));
-        }
+fn len(ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
+    if args.is_empty() {
+        return Err(Error::IncorrectArgumentCount(1, args.len()));
+    }
 
-        let mut args_iter = args.iter();
+    let mut args_iter = args.iter();
 
-        let mut first = (*args_iter.next().unwrap()).borrow_mut();
+    let mut first = (*args_iter.next().unwrap()).borrow_mut();
 
-        let len = match &mut *first {
-            Value::String(s) => s.len(),
-            Value::Array(a) => a.len(),
-            Value::Object(o) => o.len(),
-            _ => return Err(Error::CannotIndexType(first.as_shallow())),
-        };
+    let len = match &mut *first {
+        Value::String(s) => s.len(),
+        Value::Array(a) => a.len(),
+        Value::Object(o) => o.len(),
+        _ => return Err(Error::CannotIndexType((*first).as_shallow())),
+    };
 
-        Ok(Value::Number(len as f64).into_gc())
-    });
+    Ok(Value::Number(len as f64).into_gc())
 }
