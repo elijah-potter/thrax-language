@@ -1,14 +1,13 @@
-use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Display;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use ast::{BinaryOpKind, FnCall, Stmt};
-use gc::{unsafe_empty_trace, Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
+use ast::BinaryOpKind;
+use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 
 use crate::error::Error;
-use crate::{Callable, Context, NativeFn};
+use crate::Callable;
 
 #[derive(Clone, Trace, Finalize)]
 pub enum Value {

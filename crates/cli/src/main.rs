@@ -1,7 +1,6 @@
 use std::fs::read;
 use std::io::stderr;
 use std::path::PathBuf;
-use std::rc::Rc;
 
 use ast::Program;
 use clap::{Parser, Subcommand};
@@ -28,7 +27,7 @@ fn main() {
 
     match args.subcommand {
         Action::Run { filename } => {
-            let Some(ast) = load_ast(&filename) else{
+            let Some(ast) = load_ast(&filename) else {
                 print_err("Could not load AST");
                 return;
             };
@@ -46,7 +45,7 @@ fn main() {
             }
         }
         Action::Ast { filename } => {
-            let Some(ast) = load_ast(&filename) else{
+            let Some(ast) = load_ast(&filename) else {
                 print_err("Could not load AST");
                 return;
             };
@@ -56,12 +55,12 @@ fn main() {
 }
 
 fn load_ast(filename: &PathBuf) -> Option<Program> {
-    let Ok(file) = read(filename) else{
+    let Ok(file) = read(filename) else {
         print_err("Could not load file from disk.");
         return None;
     };
 
-    let Ok(source) = String::from_utf8(file)else{
+    let Ok(source) = String::from_utf8(file) else {
         print_err("Could not parse UTF-8 source.");
         return None;
     };

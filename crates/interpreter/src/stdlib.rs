@@ -1,11 +1,5 @@
-use std::{
-    rc::Rc,
-    time::{SystemTime, UNIX_EPOCH},
-};
-
-use gc::{GcCell, Trace};
-
 use crate::{Context, Error, GcValue, NativeFn, ShallowValue, Value};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn add_stdlib(context: &mut Context) {
     context.add_native_fn("timestamp".to_string(), NativeFn(timestamp));
@@ -39,9 +33,9 @@ fn push(_ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
 
     let mut first = (*args_iter.next().unwrap()).borrow_mut();
 
-    let Value::Array(arr) = &mut *first else{
-                return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
-        };
+    let Value::Array(arr) = &mut *first else {
+        return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
+    };
 
     for arg in args_iter {
         arr.push_back(arg.clone())
@@ -59,13 +53,13 @@ fn pop(_ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
 
     let mut first = (*args_iter.next().unwrap()).borrow_mut();
 
-    let Value::Array(arr) = &mut *first else{
-                return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
-        };
+    let Value::Array(arr) = &mut *first else {
+        return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
+    };
 
     Ok(arr.pop_back().unwrap_or_else(|| Value::Null.into_gc()))
 }
-fn unshift(ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
+fn unshift(_ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
     if args.len() < 2 {
         return Err(Error::IncorrectArgumentCount(2, args.len()));
     }
@@ -74,9 +68,9 @@ fn unshift(ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
 
     let mut first = (*args_iter.next().unwrap()).borrow_mut();
 
-    let Value::Array(arr) = &mut *first else{
-                return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
-        };
+    let Value::Array(arr) = &mut *first else {
+        return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
+    };
 
     for arg in args_iter {
         arr.push_front(arg.clone())
@@ -84,7 +78,7 @@ fn unshift(ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
 
     Ok((Value::Null).into_gc())
 }
-fn shift(ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
+fn shift(_ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
     if args.is_empty() {
         return Err(Error::IncorrectArgumentCount(1, args.len()));
     }
@@ -93,14 +87,14 @@ fn shift(ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
 
     let mut first = (*args_iter.next().unwrap()).borrow_mut();
 
-    let Value::Array(arr) = &mut *first else{
-                return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
-        };
+    let Value::Array(arr) = &mut *first else {
+        return Err(Error::TypeError(ShallowValue::Array, (*first).as_shallow()));
+    };
 
     Ok(arr.pop_front().unwrap_or_else(|| Value::Null.into_gc()))
 }
 
-fn len(ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
+fn len(_ctx: &mut Context, args: &[GcValue]) -> Result<GcValue, Error> {
     if args.is_empty() {
         return Err(Error::IncorrectArgumentCount(1, args.len()));
     }
