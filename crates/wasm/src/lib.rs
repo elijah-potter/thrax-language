@@ -2,10 +2,10 @@ mod println;
 
 use std::rc::Rc;
 
-use interpreter::{Callable, GcCell, NativeFn, Value};
+use interpreter::{GcCell, Value};
 use js_sys::Function;
 use println::PrintLn;
-use wasm_bindgen::{prelude::wasm_bindgen, throw_str, JsValue};
+use wasm_bindgen::{prelude::wasm_bindgen, throw_str};
 
 #[wasm_bindgen]
 pub struct Context {

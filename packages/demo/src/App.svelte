@@ -73,22 +73,20 @@
 
 <Card class="absolute right-6 top-6 z-20">
   <h3 class="font-bold text-lg pb-3">Example Scripts</h3>
-  <Listgroup active items={demoItems} let:item class="w-48">
+  <Listgroup active items={demoItems} let:item class="w-48 mb-10">
     {item["name"]}
   </Listgroup>
-</Card>
-
-<div class="flex flex-col w-full h-full">
-  <div class="flex-shrink-0 flex-grow basis-9/12">
-    <AceEditor bind:value={code.inner} />
-  </div>
-  <div class="flex-auto flex flex-row justify-end p-3" title="Run (CTRL + Enter)">
-      <Button on:click={runCode}>
+  <Button on:click={runCode}>
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 30 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
           <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
         </svg>
         Run
       </Button>
+</Card>
+
+<div class="flex flex-col w-full h-full">
+  <div class="flex-auto">
+    <AceEditor bind:value={code.inner} />
   </div>
-  <div bind:this={termDiv} class="flex-auto bg-black"/>
+  <div bind:this={termDiv} class="flex-initial"/>
 </div>
