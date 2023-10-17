@@ -9,6 +9,21 @@
   import { FitAddon } from "xterm-addon-fit";
   import demoItems from "./demoItems";
   import {WebglAddon} from "xterm-addon-webgl"
+  import { initializeApp } from "firebase/app"
+  import { getAnalytics} from "firebase/analytics"
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCbti7O4wa1Dhr7nwh1aFVe4KGMFjF4LRU",
+  authDomain: "thrax-language-demo.firebaseapp.com",
+  projectId: "thrax-language-demo",
+  storageBucket: "thrax-language-demo.appspot.com",
+  messagingSenderId: "630312416518",
+  appId: "1:630312416518:web:ed761e05c7c2df75abda87",
+  measurementId: "G-GTTWSHPEPE"
+};
+
+  let app = initializeApp(firebaseConfig)
+  const analytics = getAnalytics(app)
 
   function getqsv(param) {
     try {
