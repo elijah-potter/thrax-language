@@ -100,7 +100,10 @@ const firebaseConfig = {
 </Card>
 
 <div class="flex flex-col w-full h-full">
-  <div class="flex-grow-0 basis-20 bg-[url('/logo.svg')] bg-contain bg-no-repeat"></div>
+  <div class="flex-grow-0 basis-20 flex flex-row items-center">
+    <a class="bg-[url('/logo.svg')] bg-contain bg-no-repeat flex-initial basis-80 h-full" href="https://thrax.elijahpotter.dev"></a>
+    <a class="bg-[url('/github-mark.svg')] bg-contain bg-no-repeat flex-auto h-1/2" href="https://github.com/chilipepperhott/thrax-language"></a>
+  </div>
   <div class="flex-auto">
     <AceEditor bind:value={code.inner} />
   </div>
