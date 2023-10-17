@@ -1,5 +1,9 @@
 export default [
   {
+    name: "tour.la",
+    href: "/?code=println(%22Welcome%20to%20Thrax!%22)%3B%0A%0A%2F%2F%20This%20is%20a%20comment%0A%2F%2F%20Below%20is%20an%20%60if%60%20statement%20and%20a%20boolean%20expression.%0Aif%20(3%20%3D%3D%203)%7B%0A%20%20%20%20println(%22Thrax%20syntax%20should%20be%20pretty%20familiar%20to%20anyone%20who%20has%20used%20JavaScript%22)%3B%0A%7D%0A%0A%2F%2F%20%60while%60%20loops%20are%20the%20only%20option.%0Alet%20i%20%3D%200%3B%0Awhile(i%20%3C%205)%7B%0A%20%20%20%20println(%22This%20is%20a%20loop!%22)%3B%0A%20%20%20%20i%20%2B%3D%201%3B%0A%7D%0A%0Alet%20arr%20%3D%20%5B%22arrays%22%2C%20%22look%22%2C%20%22like%22%2C%20%22this%22%5D%3B%0A%0Ai%20%3D%200%3B%0Awhile(i%20%3C%20len(arr))%7B%0A%20%20%20%20println(arr%5Bi%5D)%3B%0A%20%20%20%20i%20%2B%3D%201%3B%0A%7D%0A%0Aprintln(%22We%20can%20define%20and%20use%20functions%20like%20this%3A%22)%3B%0A%0Afn%20greet(name)%7B%0A%20%20%20%20%2F%2F%20Strings%20can%20be%20concatonated%20with%20%60%2B%60%0A%20%20%20%20println(%22Hello%2C%20%22%20%2B%20name%20%2B%20%22!%22)%3B%0A%7D%0A%0Agreet(%22world%22)%3B",
+  },
+  {
     name: "add_fns.la",
     href: "/?code=fn%20test(n)%7B%0A%20%20return%20n%3B%0A%7D%0A%0Atest(1%20%2B%202)%20%2B%20test(2)%3B%0A",
   },

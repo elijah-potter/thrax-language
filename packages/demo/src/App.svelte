@@ -85,6 +85,7 @@
 </Card>
 
 <div class="flex flex-col w-full h-full">
+  <div class="flex-grow-0 basis-20 bg-[url('/logo.svg')] bg-contain bg-no-repeat"></div>
   <div class="flex-auto">
     <AceEditor bind:value={code.inner} />
   </div>
