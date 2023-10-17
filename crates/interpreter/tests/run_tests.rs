@@ -5,7 +5,7 @@ macro_rules! create_test {
        paste::paste! {
            #[test]
            fn [<runs_$filename>](){
-                let source = include_str!(concat!("./tests_sources/", stringify!($filename), ".la"));
+                let source = include_str!(concat!("./tests_sources/", stringify!($filename), ".th"));
 
                 let ast = parser::parse_string(&source).unwrap();
                 let mut context = Context::new();
