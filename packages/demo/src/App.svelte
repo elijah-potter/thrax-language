@@ -10,7 +10,6 @@
   import demoItems from "./demoItems";
   import {WebglAddon} from "xterm-addon-webgl"
   import { initializeApp } from "firebase/app"
-  import { getAnalytics} from "firebase/analytics"
 
 const firebaseConfig = {
   apiKey: "AIzaSyCbti7O4wa1Dhr7nwh1aFVe4KGMFjF4LRU",
@@ -23,7 +22,6 @@ const firebaseConfig = {
 };
 
   let app = initializeApp(firebaseConfig)
-  const analytics = getAnalytics(app)
 
   function getqsv(param) {
     try {
