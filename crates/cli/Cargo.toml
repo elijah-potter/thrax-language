@@ -8,4 +8,4 @@ ast = { path = "../ast" }
 clap = { version = "4.0.26", features = ["derive"] }
 parser = { path = "../parser" }
 interpreter = { path = "../interpreter" }
-crossterm = "0.25.0"
+crossterm = "0.26.1"
